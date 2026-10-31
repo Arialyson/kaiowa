@@ -306,7 +306,7 @@ function App() {
       <div className="kaiowa-container">
         <header className="kaiowa-header">
           <div className="logo-area">
-            <h1>Kaiowá 🌿</h1>
+            <img src="/logo-vazado.png" alt="Kaiowá Logo" className="kaiowa-logo-header" />
           </div>
           {usuario && (
             <div className="user-profile-bar">
@@ -368,7 +368,7 @@ function App() {
             </div>
             <div className="search-results-list">
               {listaUsuariosModal.length === 0 ? (
-                <p style={{ color: '#72a884', fontSize: '13px' }}>Nenhum utilizador encontrado.</p>
+                <p style={{ color: '#a8e0a3', fontSize: '13px' }}>Nenhum utilizador encontrado.</p>
               ) : (
                 listaUsuariosModal.map((u) => (
                   <div key={u.id} className="search-user-item">

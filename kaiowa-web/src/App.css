@@ -2,14 +2,12 @@
   box-sizing: border-box;
 }
 
+/* Fundo externo limpo e claro */
 body {
   margin: 0;
-  background-color: #e2ecd8;
-  color: #1e3322;
+  background-color: #f7f9f2;
+  color: #1b3322;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  /* Fundo sutil com o tom creme claro */
-  background-image: radial-gradient(#cbdcb8 1px, transparent 1px);
-  background-size: 24px 24px;
 }
 
 .kaiowa-app-wrapper {
@@ -19,37 +17,45 @@ body {
   width: 100%;
 }
 
+/* Container central com o padrão de folhas invertido */
 .kaiowa-container {
   width: 100%;
   max-width: 650px;
   min-height: 100vh;
-  border-left: 1px solid #c0d3a8;
-  border-right: 1px solid #c0d3a8;
+  border-left: 1px solid #b8caa4;
+  border-right: 1px solid #b8caa4;
   background-color: #f7f9f2;
+  background-image: url('/bg-pattern.png');
+  background-repeat: repeat;
+  background-size: 260px 260px;
+  box-shadow: 0 0 25px rgba(27, 51, 34, 0.12);
 }
 
-/* Header */
+/* Header Verde Escuro Floresta */
 .kaiowa-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 14px 20px;
-  border-bottom: 1px solid #c0d3a8;
+  border-bottom: 1px solid #14281a;
   position: sticky;
   top: 0;
-  background: rgba(247, 249, 242, 0.92);
-  backdrop-filter: blur(12px);
+  background-color: #1b3322;
+  color: #f7f9f2;
   z-index: 100;
 }
 
-.kaiowa-header h1 {
-  margin: 0;
-  font-size: 24px;
-  color: #2a5235;
-  letter-spacing: 0.5px;
+/* Logo Vazado no Cabeçalho */
+.logo-area {
   display: flex;
   align-items: center;
-  gap: 8px;
+}
+
+.kaiowa-logo-header {
+  height: 38px;
+  width: auto;
+  object-fit: contain;
+  display: block;
 }
 
 .user-profile-bar {
@@ -69,7 +75,7 @@ body {
   height: 40px;
   border-radius: 50%;
   object-fit: cover;
-  border: 2px solid #2a5235;
+  border: 2px solid #a8e0a3;
 }
 
 .avatar-overlay {
@@ -78,7 +84,7 @@ body {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(42, 82, 53, 0.5);
+  background: rgba(27, 51, 34, 0.6);
   border-radius: 50%;
   display: flex;
   justify-content: center;
@@ -95,13 +101,13 @@ body {
 .user-name {
   font-weight: bold;
   font-size: 14px;
-  color: #2a5235;
+  color: #f7f9f2;
 }
 
 .btn-logout {
-  background: #e2ecd8;
-  border: 1px solid #c0d3a8;
-  color: #2a5235;
+  background: #284731;
+  border: 1px solid #3d6347;
+  color: #f7f9f2;
   padding: 6px 14px;
   border-radius: 16px;
   font-size: 12px;
@@ -110,13 +116,13 @@ body {
 }
 
 .btn-logout:hover {
-  background-color: #cbdcb8;
+  background-color: #355a3f;
 }
 
 .btn-icon {
-  background: #e2ecd8;
-  border: 1px solid #c0d3a8;
-  color: #2a5235;
+  background: #284731;
+  border: 1px solid #3d6347;
+  color: #f7f9f2;
   padding: 6px 10px;
   border-radius: 50%;
   cursor: pointer;
@@ -124,22 +130,22 @@ body {
 }
 
 .btn-icon:hover {
-  background-color: #cbdcb8;
+  background-color: #355a3f;
 }
 
-/* Resumo do Perfil e Card de Pesquisa */
+/* Resumo do Perfil */
 .profile-summary-card {
-  padding: 16px 20px;
-  border-bottom: 1px solid #c0d3a8;
-  background: #edf3e4;
+  padding: 18px 20px;
+  border-bottom: 1px solid #14281a;
+  background: #233e2b;
 }
 
 .stats-box {
   display: flex;
   gap: 20px;
   font-size: 14px;
-  color: #4a6b50;
-  margin-bottom: 12px;
+  color: #a8e0a3;
+  margin-bottom: 14px;
 }
 
 .clickable-stat {
@@ -148,43 +154,49 @@ body {
 }
 
 .clickable-stat:hover {
-  color: #2a5235;
+  color: #ffffff;
   text-decoration: underline;
 }
 
 .stats-box strong {
-  color: #1e3322;
+  color: #ffffff;
 }
 
-/* Input com Botão de Buscar */
+/* Input e Botão de Busca */
 .search-user-box {
   display: flex;
-  gap: 8px;
+  gap: 10px;
 }
 
 .search-user-box input {
-  background: #f7f9f2;
-  border: 1px solid #c0d3a8;
+  background: #1b3322;
+  border: 1px solid #3d6347;
   border-radius: 20px;
   padding: 10px 16px;
   font-size: 14px;
-  color: #1e3322;
+  color: #ffffff;
   flex: 1;
 }
 
+.search-user-box input::placeholder {
+  color: #a8e0a3;
+  opacity: 0.7;
+}
+
 .btn-search {
-  background-color: #2a5235;
-  color: #ffffff;
+  background-color: #a8e0a3;
+  color: #1b3322;
   border: none;
   padding: 8px 18px;
   border-radius: 20px;
   font-weight: bold;
   font-size: 13px;
   cursor: pointer;
+  transition: background 0.2s;
 }
 
 .btn-search:hover {
-  background-color: #1c3d25;
+  background-color: #c4f0c0;
 }
 
 .search-results-list {
@@ -199,9 +211,9 @@ body {
   justify-content: space-between;
   align-items: center;
   padding: 10px 14px;
-  background: #f7f9f2;
+  background: #1b3322;
   border-radius: 10px;
-  border: 1px solid #c0d3a8;
+  border: 1px solid #3d6347;
 }
 
 .search-user-item .user-info {
@@ -216,14 +228,14 @@ body {
 }
 
 .search-user-item small {
-  color: #5d7e63;
+  color: #a8e0a3;
   font-size: 11px;
 }
 
-/* Modal de Configurações e Listas */
+/* Modal de Configurações */
 .settings-modal {
-  background: #edf3e4;
-  border-bottom: 1px solid #c0d3a8;
+  background: #233e2b;
+  border-bottom: 1px solid #14281a;
   padding: 16px 20px;
 }
 
@@ -237,13 +249,13 @@ body {
 .settings-header h3 {
   margin: 0;
   font-size: 16px;
-  color: #2a5235;
+  color: #a8e0a3;
 }
 
 .btn-close {
   background: none;
   border: none;
-  color: #5d7e63;
+  color: #a8e0a3;
   font-size: 18px;
   cursor: pointer;
 }
@@ -258,18 +270,18 @@ body {
 .settings-form h4, .danger-zone h4 {
   margin: 8px 0 4px 0;
   font-size: 14px;
-  color: #1e3322;
+  color: #f7f9f2;
 }
 
 .danger-zone {
-  border-top: 1px solid #c0d3a8;
+  border-top: 1px solid #3d6347;
   padding-top: 12px;
 }
 
 .btn-delete-account {
   background: none;
   border: 1px solid #d32f2f;
-  color: #d32f2f;
+  color: #ff6b6b;
   padding: 6px 12px;
   border-radius: 16px;
   font-size: 12px;
@@ -277,13 +289,16 @@ body {
 }
 
 .btn-delete-account:hover {
-  background-color: rgba(211, 47, 47, 0.1);
+  background-color: rgba(211, 47, 47, 0.2);
 }
 
-/* Form Auth */
+/* Auth e Formulários */
 .auth-box {
   padding: 24px 16px;
-  border-bottom: 1px solid #c0d3a8;
+  border-bottom: 1px solid #b8caa4;
+  background: #edf3e4;
+  margin: 16px;
+  border-radius: 14px;
 }
 
 form {
@@ -293,9 +308,9 @@ form {
 }
 
 input, textarea {
-  background: #edf3e4;
-  border: 1px solid #c0d3a8;
-  color: #1e3322;
+  background: #ffffff;
+  border: 1px solid #b8caa4;
+  color: #1b3322;
   padding: 12px;
   border-radius: 8px;
   font-size: 15px;
@@ -304,11 +319,11 @@ input, textarea {
 
 input:focus, textarea:focus {
   outline: none;
-  border-color: #2a5235;
+  border-color: #1b3322;
 }
 
 .btn-primary {
-  background-color: #2a5235;
+  background-color: #1b3322;
   color: #ffffff;
   border: none;
   padding: 10px 20px;
@@ -318,13 +333,13 @@ input:focus, textarea:focus {
 }
 
 .btn-primary:hover {
-  background-color: #1c3d25;
+  background-color: #284731;
 }
 
 .btn-toggle {
   background: none;
   border: none;
-  color: #2a5235;
+  color: #1b3322;
   margin-top: 12px;
   cursor: pointer;
   font-weight: 600;
@@ -333,8 +348,9 @@ input:focus, textarea:focus {
 /* Criador de Post */
 .post-create-box {
   padding: 16px 20px;
-  border-bottom: 1px solid #c0d3a8;
-  background: #f7f9f2;
+  border-bottom: 1px solid #b8caa4;
+  background: rgba(247, 249, 242, 0.95);
+  backdrop-filter: blur(8px);
 }
 
 .post-input-wrapper {
@@ -347,7 +363,7 @@ input:focus, textarea:focus {
   height: 42px;
   border-radius: 50%;
   object-fit: cover;
-  border: 1px solid #c0d3a8;
+  border: 1px solid #b8caa4;
 }
 
 .post-create-box textarea {
@@ -355,7 +371,7 @@ input:focus, textarea:focus {
   background: transparent;
   resize: none;
   font-size: 16px;
-  color: #1e3322;
+  color: #1b3322;
 }
 
 .image-preview-container {
@@ -374,7 +390,7 @@ input:focus, textarea:focus {
   position: absolute;
   top: 8px;
   right: 8px;
-  background: rgba(30, 51, 34, 0.75);
+  background: rgba(27, 51, 34, 0.75);
   color: #fff;
   border: none;
   border-radius: 50%;
@@ -389,12 +405,12 @@ input:focus, textarea:focus {
   align-items: center;
   margin-top: 12px;
   padding-top: 10px;
-  border-top: 1px solid #c0d3a8;
+  border-top: 1px solid #b8caa4;
 }
 
 .btn-attach-image {
-  background: #e2ecd8;
-  color: #2a5235;
+  background: #e3ebd7;
+  color: #1b3322;
   padding: 6px 14px;
   border-radius: 16px;
   font-size: 13px;
@@ -402,7 +418,7 @@ input:focus, textarea:focus {
   cursor: pointer;
 }
 
-/* Feed */
+/* Feed com cartões */
 .feed-container {
   padding: 16px 20px;
 }
@@ -410,32 +426,33 @@ input:focus, textarea:focus {
 .feed-container h3 {
   margin-top: 0;
   font-size: 18px;
-  color: #2a5235;
-  border-bottom: 1px solid #c0d3a8;
+  color: #1b3322;
+  border-bottom: 1px solid #b8caa4;
   padding-bottom: 8px;
 }
 
 .login-required-card {
   text-align: center;
   padding: 32px 16px;
-  background: #edf3e4;
-  border: 1px solid #c0d3a8;
+  background: rgba(237, 243, 228, 0.95);
+  border: 1px solid #b8caa4;
   border-radius: 14px;
-  color: #2a5235;
+  color: #1b3322;
 }
 
 .login-required-card p {
-  color: #4a6b50;
+  color: #3a5c41;
   font-size: 14px;
   margin-top: 6px;
 }
 
 .post-card {
-  background: #edf3e4;
-  border: 1px solid #c0d3a8;
+  background: rgba(237, 243, 228, 0.95);
+  border: 1px solid #b8caa4;
   border-radius: 14px;
   padding: 16px;
   margin-bottom: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .post-card-header {
@@ -450,7 +467,7 @@ input:focus, textarea:focus {
   height: 40px;
   border-radius: 50%;
   object-fit: cover;
-  border: 1px solid #c0d3a8;
+  border: 1px solid #b8caa4;
 }
 
 .post-user-info {
@@ -465,7 +482,7 @@ input:focus, textarea:focus {
 }
 
 .user-follow-line strong {
-  color: #1e3322;
+  color: #1b3322;
   font-size: 15px;
 }
 
@@ -475,7 +492,7 @@ input:focus, textarea:focus {
 }
 
 .btn-follow {
-  background-color: #2a5235;
+  background-color: #1b3322;
   color: #ffffff;
   border: none;
   padding: 4px 12px;
@@ -486,9 +503,9 @@ input:focus, textarea:focus {
 }
 
 .btn-following {
-  background: #e2ecd8;
-  border: 1px solid #c0d3a8;
-  color: #2a5235;
+  background: #e3ebd7;
+  border: 1px solid #b8caa4;
+  color: #1b3322;
   padding: 4px 12px;
   border-radius: 12px;
   font-weight: bold;
@@ -500,7 +517,7 @@ input:focus, textarea:focus {
   font-size: 15px;
   line-height: 1.4;
   margin: 10px 0;
-  color: #1e3322;
+  color: #1b3322;
   word-break: break-word;
 }
 
@@ -523,8 +540,8 @@ input:focus, textarea:focus {
 
 .post-actions button {
   background: #f7f9f2;
-  border: 1px solid #c0d3a8;
-  color: #2a5235;
+  border: 1px solid #b8caa4;
+  color: #1b3322;
   padding: 6px 14px;
   border-radius: 18px;
   cursor: pointer;
@@ -541,7 +558,7 @@ input:focus, textarea:focus {
 .comments-section {
   margin-top: 14px;
   padding-top: 12px;
-  border-top: 1px solid #c0d3a8;
+  border-top: 1px solid #b8caa4;
 }
 
 .comment-item {
@@ -562,18 +579,18 @@ input:focus, textarea:focus {
   padding: 8px 12px;
   border-radius: 12px;
   flex: 1;
-  border: 1px solid #c0d3a8;
+  border: 1px solid #b8caa4;
 }
 
 .comment-body strong {
   font-size: 13px;
-  color: #2a5235;
+  color: #1b3322;
 }
 
 .comment-body p {
   margin: 4px 0 0 0;
   font-size: 13px;
-  color: #1e3322;
+  color: #1b3322;
 }
 
 .comment-input-box {
@@ -589,7 +606,7 @@ input:focus, textarea:focus {
 }
 
 .comment-input-box button {
-  background: #2a5235;
+  background: #1b3322;
   color: #ffffff;
   border: none;
   border-radius: 12px;
