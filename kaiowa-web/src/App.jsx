@@ -440,20 +440,70 @@ function App() {
           )}
 
           {!token ? (
-            <div className="auth-box">
-              <h2>{isRegister ? 'Criar Conta' : 'Entrar na Kaiowá'}</h2>
-              {erro && <div className="error-message">{erro}</div>}
-              <form onSubmit={handleAuth}>
+            <div className="auth-social-card">
+              <div className="auth-social-brand">
+                <img src="/logo-vazado.png" alt="Kaiowá" className="auth-social-logo" />
+                <h2>O que está acontecendo agora</h2>
+                <p className="auth-social-subtitle">Junte-se à comunidade Kaiowá hoje mesmo.</p>
+              </div>
+
+              <form onSubmit={handleAuth} className="auth-social-form">
                 {isRegister && (
-                  <input type="text" placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} required />
+                  <div className="input-field-social">
+                    <input
+                      type="text"
+                      placeholder="Nome de utilizador"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      required
+                    />
+                  </div>
                 )}
-                <input type="email" placeholder="E-mail" value={email} onChange={(e) => setEmail(e.target.value)} required />
-                <input type="password" placeholder="Senha" value={password} onChange={(e) => setPassword(e.target.value)} required />
-                <button type="submit" className="btn-primary">{isRegister ? 'Cadastrar' : 'Entrar'}</button>
+                <div className="input-field-social">
+                  <input
+                    type="email"
+                    placeholder="E-mail"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="input-field-social">
+                  <input
+                    type="password"
+                    placeholder="Senha"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                  />
+                </div>
+
+                {erro && <div className="error-message">{erro}</div>}
+
+                <button type="submit" className="btn-social-primary">
+                  {isRegister ? 'Inscrever-se' : 'Entrar'}
+                </button>
               </form>
-              <button onClick={() => setIsRegister(!isRegister)} className="btn-toggle">
-                {isRegister ? 'Já tem conta? Entre.' : 'Não tem conta? Cadastre-se.'}
-              </button>
+
+              <div className="auth-divider">
+                <span>ou</span>
+              </div>
+
+              <div className="auth-social-footer">
+                <p>
+                  {isRegister ? 'Já tem uma conta?' : 'Não tem uma conta?'}
+                </p>
+                <button
+                  type="button"
+                  className="btn-social-secondary"
+                  onClick={() => {
+                    setIsRegister(!isRegister);
+                    setErro('');
+                  }}
+                >
+                  {isRegister ? 'Entrar' : 'Criar conta'}
+                </button>
+              </div>
             </div>
           ) : (
             <div className="post-create-box">
