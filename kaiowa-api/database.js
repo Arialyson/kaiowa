@@ -1,87 +1,88 @@
 const sqlite3 = require('sqlite3').verbose();
+const path = require('path');
 
-const db = new sqlite3.Database('./kaiowa.db', (err) => {
-    if (err) {
-        console.error('Erro ao conectar ao banco de dados:', err.message);
-    } else {
-        console.log('Conectado ao banco de dados SQLite com sucesso.');
-    }
-});
-
-db.run('PRAGMA foreign_keys = ON;');
+const dbPath = path.join(__dirname, 'kaiowa.db');
+const db = new sqlite3.Database(dbPath);
 
 db.serialize(() => {
-    // Tabela de usuários com foto de perfil (avatar)
-    db.run(`
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL,
-            email TEXT UNIQUE NOT NULL,
-            password TEXT NOT NULL,
-            avatar TEXT DEFAULT '',
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    `);
+  // Tabela de utilizadores
+  db.run(`
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT UNIQUE,
+      email TEXT UNIQUE,
+      password TEXT,
+      avatar TEXT,
+      token TEXT
+    )
+  `);
 
-    // Tabela de posts com imagem em anexo (image_url)
-    db.run(`
-        CREATE TABLE IF NOT EXISTS posts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            content TEXT NOT NULL,
-            image_url TEXT DEFAULT '',
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
-        )
-    `);
+  // Tabela de posts
+  db.run(`
+    CREATE TABLE IF NOT EXISTS posts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER,
+      content TEXT,
+      image_url TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(user_id) REFERENCES users(id)
+    )
+  `);
 
-    db.run(`
-        CREATE TABLE IF NOT EXISTS likes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            post_id INTEGER NOT NULL,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
-            FOREIGN KEY (post_id) REFERENCES posts (id) ON DELETE CASCADE,
-            UNIQUE(user_id, post_id)
-        )
-    `);
+  // Tabela de seguidores
+  db.run(`
+    CREATE TABLE IF NOT EXISTS follows (
+      follower_id INTEGER,
+      following_id INTEGER,
+      PRIMARY KEY (follower_id, following_id)
+    )
+  `);
 
-    db.run(`
-        CREATE TABLE IF NOT EXISTS follows (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            follower_id INTEGER NOT NULL,
-            following_id INTEGER NOT NULL,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (follower_id) REFERENCES users (id) ON DELETE CASCADE,
-            FOREIGN KEY (following_id) REFERENCES users (id) ON DELETE CASCADE,
-            UNIQUE(follower_id, following_id)
-        )
-    `);
+  // Tabela de curtidas
+  db.run(`
+    CREATE TABLE IF NOT EXISTS likes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER,
+      post_id INTEGER,
+      UNIQUE(user_id, post_id)
+    )
+  `);
 
-    db.run(`
-        CREATE TABLE IF NOT EXISTS comments (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            post_id INTEGER NOT NULL,
-            content TEXT NOT NULL,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
-            FOREIGN KEY (post_id) REFERENCES posts (id) ON DELETE CASCADE
-        )
-    `);
+  // Tabela de comentários
+  db.run(`
+    CREATE TABLE IF NOT EXISTS comments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER,
+      post_id INTEGER,
+      content TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
 
-    db.run(`
-        CREATE TABLE IF NOT EXISTS reposts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            post_id INTEGER NOT NULL,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
-            FOREIGN KEY (post_id) REFERENCES posts (id) ON DELETE CASCADE,
-            UNIQUE(user_id, post_id)
-        )
-    `);
+  // Tabela de reposts
+  db.run(`
+    CREATE TABLE IF NOT EXISTS reposts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER,
+      post_id INTEGER,
+      UNIQUE(user_id, post_id)
+    )
+  `);
+
+  // Tabela de Notificações
+  db.run(`
+    CREATE TABLE IF NOT EXISTS notifications (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      actor_id INTEGER NOT NULL,
+      type TEXT NOT NULL,
+      post_id INTEGER,
+      is_read INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(user_id) REFERENCES users(id),
+      FOREIGN KEY(actor_id) REFERENCES users(id)
+    )
+  `);
 });
 
 module.exports = db;

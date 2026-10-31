@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import heic2any from 'heic2any';
 import EmojiPicker from 'emoji-picker-react';
@@ -153,18 +153,34 @@ function App() {
   const [comprimindo, setComprimindo] = useState(false);
   const [mostrarEmojis, setMostrarEmojis] = useState(false);
 
+  const [notificacoes, setNotificacoes] = useState([]);
+  const [mostrarNotificacoes, setMostrarNotificacoes] = useState(false);
+  const [balancarSino, setBalancarSino] = useState(false);
+
   const [comentarioAberto, setComentarioAberto] = useState(null);
   const [comentarios, setComentarios] = useState({});
   const [novoComentario, setNovoComentario] = useState('');
 
+  const prevUnreadCountRef = useRef(0);
+
+  // Polling automático a cada 3 segundos
   useEffect(() => {
     if (token) {
       carregarPosts();
+      carregarNotificacoes();
       if (usuario && usuario.id) {
         carregarEstatisticas(usuario.id);
       }
+
+      const interval = setInterval(() => {
+        carregarNotificacoes();
+        carregarPosts();
+      }, 3000);
+
+      return () => clearInterval(interval);
     } else {
       setPosts([]);
+      setNotificacoes([]);
     }
   }, [token]);
 
@@ -176,6 +192,44 @@ function App() {
     } catch (err) {
       console.error('Erro ao carregar posts:', err);
     }
+  };
+
+  const carregarNotificacoes = async () => {
+    try {
+      const headers = { Authorization: `Bearer ${token}` };
+      const res = await axios.get(`${API_URL}/notifications`, { headers });
+      const lista = res.data || [];
+      
+      const unreadCount = lista.filter((n) => n.is_read === 0).length;
+
+      if (unreadCount > prevUnreadCountRef.current && unreadCount > 0) {
+        setBalancarSino(true);
+        setTimeout(() => setBalancarSino(false), 1200);
+      }
+
+      prevUnreadCountRef.current = unreadCount;
+      setNotificacoes(lista);
+    } catch (err) {
+      console.error('Erro ao carregar notificações:', err);
+    }
+  };
+
+  const marcarNotificacoesLidas = async () => {
+    try {
+      const headers = { Authorization: `Bearer ${token}` };
+      await axios.put(`${API_URL}/notifications/read`, {}, { headers });
+      setNotificacoes((prev) => prev.map((n) => ({ ...n, is_read: 1 })));
+      prevUnreadCountRef.current = 0;
+    } catch (err) {
+      console.error('Erro ao marcar notificações como lidas:', err);
+    }
+  };
+
+  const togglePainelNotificacoes = () => {
+    if (!mostrarNotificacoes) {
+      marcarNotificacoesLidas();
+    }
+    setMostrarNotificacoes(!mostrarNotificacoes);
   };
 
   const carregarEstatisticas = async (userId) => {
@@ -254,10 +308,12 @@ function App() {
     setToken('');
     setUsuario(null);
     setMostrarConfig(false);
+    setMostrarNotificacoes(false);
     setResultadosBusca([]);
     setTermoBusca('');
     setModalFollowType(null);
     setPosts([]);
+    setNotificacoes([]);
     localStorage.clear();
   };
 
@@ -453,6 +509,7 @@ function App() {
   };
 
   const charsRestantes = MAX_CHAR_COUNT - novoPost.length;
+  const naoLidasCount = notificacoes.filter((n) => n.is_read === 0).length;
 
   return (
     <div className="kaiowa-app-wrapper">
@@ -463,6 +520,7 @@ function App() {
           </div>
           {usuario && (
             <div className="user-profile-bar">
+              {/* Foto de perfil */}
               <label htmlFor="avatar-upload" className="avatar-label" title="Alterar foto de perfil">
                 <img src={usuario.avatar || DEFAULT_AVATAR} alt="Avatar" className="user-avatar-header" />
                 <span className="avatar-overlay">📷</span>
@@ -474,8 +532,49 @@ function App() {
                 onChange={handleUploadAvatar}
                 style={{ display: 'none' }}
               />
-              
+
+              {/* Nome de utilizador */}
               <span className="user-name">@{usuario.username}</span>
+
+              {/* Sino de Notificações com Alerta Visual e Animação */}
+              <div className="notification-wrapper">
+                <button
+                  onClick={togglePainelNotificacoes}
+                  className={`btn-icon ${balancarSino ? 'bell-shake' : ''}`}
+                  title="Notificações"
+                >
+                  🔔
+                  {naoLidasCount > 0 && (
+                    <span className="notification-badge pulse-alert">{naoLidasCount}</span>
+                  )}
+                </button>
+
+                {mostrarNotificacoes && (
+                  <div className="notifications-dropdown">
+                    <h4>🔔 Notificações</h4>
+                    {notificacoes.length === 0 ? (
+                      <p className="no-notifications">Sem notificações recentes.</p>
+                    ) : (
+                      <div className="notifications-list">
+                        {notificacoes.map((n) => (
+                          <div key={n.id} className={`notification-item ${n.is_read === 0 ? 'unread' : ''}`}>
+                            <img src={n.actor_avatar || DEFAULT_AVATAR} alt="Avatar" className="comment-avatar" />
+                            <div className="notification-text">
+                              <strong>@{n.actor_username}</strong>{' '}
+                              {n.type === 'like' && 'curtiu o seu post.'}
+                              {n.type === 'comment' && 'comentou no seu post.'}
+                              {n.type === 'follow' && 'começou a seguir-te.'}
+                              <small>{new Date(n.created_at).toLocaleDateString()}</small>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Configurações e Logout */}
               <button onClick={() => setMostrarConfig(!mostrarConfig)} className="btn-icon" title="Configurações">⚙️</button>
               <button onClick={handleLogout} className="btn-logout">Sair</button>
             </div>
