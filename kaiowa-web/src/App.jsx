@@ -1,9 +1,127 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import heic2any from 'heic2any';
+import EmojiPicker from 'emoji-picker-react';
 import './App.css';
 
 const API_URL = 'http://localhost:3000';
 const DEFAULT_AVATAR = 'https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png';
+
+const MAX_CHAR_COUNT = 280;
+
+const processarEComprimirImagem = async (file, maxWidth = 1920, quality = 0.82) => {
+  let arquivoParaProcessar = file;
+
+  const nomeLower = file.name.toLowerCase();
+  const ehHeic = nomeLower.endsWith('.heic') || nomeLower.endsWith('.heif') || file.type.includes('heic') || file.type.includes('heif');
+
+  if (ehHeic) {
+    try {
+      const convertedBlob = await heic2any({
+        blob: file,
+        toType: 'image/jpeg',
+        quality: 0.9,
+      });
+
+      const blobFinal = Array.isArray(convertedBlob) ? convertedBlob[0] : convertedBlob;
+      arquivoParaProcessar = new File([blobFinal], file.name.replace(/\.[^/.]+$/, '.jpg'), {
+        type: 'image/jpeg',
+        lastModified: Date.now(),
+      });
+    } catch (err) {
+      console.warn('Conversão HEIC ignorada, usando ficheiro original:', err);
+    }
+  }
+
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(arquivoParaProcessar);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target.result;
+      img.onload = () => {
+        try {
+          let width = img.width;
+          let height = img.height;
+
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                const compressedFile = new File([blob], arquivoParaProcessar.name.replace(/\.[^/.]+$/, '.jpg'), {
+                  type: 'image/jpeg',
+                  lastModified: Date.now(),
+                });
+                return resolve(compressedFile);
+              }
+              resolve(arquivoParaProcessar);
+            },
+            'image/jpeg',
+            quality
+          );
+        } catch {
+          resolve(arquivoParaProcessar);
+        }
+      };
+      img.onerror = () => resolve(arquivoParaProcessar);
+    };
+    reader.onerror = () => resolve(arquivoParaProcessar);
+  });
+};
+
+const IconHeart = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l8.72-8.72 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+  </svg>
+);
+
+const IconRepeat = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="17 1 21 5 17 9" />
+    <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+    <polyline points="7 23 3 19 7 15" />
+    <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+  </svg>
+);
+
+const IconMessage = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+  </svg>
+);
+
+const IconImage = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 18, height: 18 }}>
+    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+    <circle cx="8.5" cy="8.5" r="1.5" />
+    <polyline points="21 15 16 10 5 21" />
+  </svg>
+);
+
+const IconSend = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16 }}>
+    <line x1="22" y1="2" x2="11" y2="13" />
+    <polygon points="22 2 15 22 11 13 2 9 22 2" />
+  </svg>
+);
+
+const IconTrash = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="3 6 5 6 21 6" />
+    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+  </svg>
+);
 
 function App() {
   const [token, setToken] = useState(localStorage.getItem('token') || '');
@@ -32,6 +150,8 @@ function App() {
   const [novoPost, setNovoPost] = useState('');
   const [imagemPost, setImagemPost] = useState(null);
   const [previewImagem, setPreviewImagem] = useState('');
+  const [comprimindo, setComprimindo] = useState(false);
+  const [mostrarEmojis, setMostrarEmojis] = useState(false);
 
   const [comentarioAberto, setComentarioAberto] = useState(null);
   const [comentarios, setComentarios] = useState({});
@@ -51,7 +171,7 @@ function App() {
   const carregarPosts = async () => {
     try {
       const headers = { Authorization: `Bearer ${token}` };
-      const res = await axios.get(`${API_URL}/posts?page=1&limit=20`, { headers });
+      const res = await axios.get(`${API_URL}/posts`, { headers });
       setPosts(res.data.posts);
     } catch (err) {
       console.error('Erro ao carregar posts:', err);
@@ -145,10 +265,12 @@ function App() {
     const file = e.target.files[0];
     if (!file) return;
 
-    const formData = new FormData();
-    formData.append('avatar', file);
-
     try {
+      setComprimindo(true);
+      const fotoOtimizada = await processarEComprimirImagem(file, 800, 0.85);
+      const formData = new FormData();
+      formData.append('avatar', fotoOtimizada);
+
       const res = await axios.post(`${API_URL}/users/avatar`, formData, {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
       });
@@ -158,8 +280,31 @@ function App() {
       alert('Foto de perfil atualizada!');
       carregarPosts();
     } catch (err) {
-      alert('Erro ao atualizar avatar.');
+      alert('Erro ao enviar avatar.');
+    } finally {
+      setComprimindo(false);
     }
+  };
+
+  const handleSelecaoImagemPost = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    try {
+      setComprimindo(true);
+      const fotoOtimizada = await processarEComprimirImagem(file, 1920, 0.82);
+      setImagemPost(fotoOtimizada);
+      setPreviewImagem(URL.createObjectURL(fotoOtimizada));
+    } catch (err) {
+      setImagemPost(file);
+      setPreviewImagem(URL.createObjectURL(file));
+    } finally {
+      setComprimindo(false);
+    }
+  };
+
+  const handleEmojiClick = (emojiData) => {
+    setNovoPost((prev) => prev + emojiData.emoji);
   };
 
   const handleAlterarSenha = async (e) => {
@@ -219,6 +364,10 @@ function App() {
     e.preventDefault();
     if (!novoPost.trim() && !imagemPost) return;
 
+    if (novoPost.length > MAX_CHAR_COUNT) {
+      return alert(`O post excede o limite máximo de ${MAX_CHAR_COUNT} caracteres.`);
+    }
+
     const formData = new FormData();
     formData.append('content', novoPost);
     if (imagemPost) formData.append('image', imagemPost);
@@ -230,9 +379,11 @@ function App() {
       setNovoPost('');
       setImagemPost(null);
       setPreviewImagem('');
+      setMostrarEmojis(false);
       carregarPosts();
     } catch (err) {
-      alert('Erro ao publicar post.');
+      const erroServidor = err.response?.data?.erro || err.response?.data?.message || err.message;
+      alert(`Erro ao publicar post: ${erroServidor}`);
     }
   };
 
@@ -301,6 +452,8 @@ function App() {
     }
   };
 
+  const charsRestantes = MAX_CHAR_COUNT - novoPost.length;
+
   return (
     <div className="kaiowa-app-wrapper">
       <div className="kaiowa-container">
@@ -314,7 +467,13 @@ function App() {
                 <img src={usuario.avatar || DEFAULT_AVATAR} alt="Avatar" className="user-avatar-header" />
                 <span className="avatar-overlay">📷</span>
               </label>
-              <input id="avatar-upload" type="file" accept="image/*" onChange={handleUploadAvatar} style={{ display: 'none' }} />
+              <input
+                id="avatar-upload"
+                type="file"
+                accept="image/*"
+                onChange={handleUploadAvatar}
+                style={{ display: 'none' }}
+              />
               
               <span className="user-name">@{usuario.username}</span>
               <button onClick={() => setMostrarConfig(!mostrarConfig)} className="btn-icon" title="Configurações">⚙️</button>
@@ -514,6 +673,7 @@ function App() {
                     placeholder="O que está acontecendo?"
                     value={novoPost}
                     onChange={(e) => setNovoPost(e.target.value)}
+                    maxLength={MAX_CHAR_COUNT}
                     rows="3"
                   />
                 </div>
@@ -526,12 +686,47 @@ function App() {
                 )}
 
                 <div className="post-form-footer">
-                  <label htmlFor="post-image-upload" className="btn-attach-image">🖼️ Foto</label>
-                  <input id="post-image-upload" type="file" accept="image/*" onChange={(e) => {
-                    const file = e.target.files[0];
-                    if (file) { setImagemPost(file); setPreviewImagem(URL.createObjectURL(file)); }
-                  }} style={{ display: 'none' }} />
-                  <button type="submit" className="btn-primary">Publicar</button>
+                  <div className="post-form-actions">
+                    <label htmlFor="post-image-upload" className="btn-attach-image">
+                      <IconImage /> {comprimindo ? 'Carregando...' : 'Adicionar Foto'}
+                    </label>
+                    <input
+                      id="post-image-upload"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleSelecaoImagemPost}
+                      style={{ display: 'none' }}
+                    />
+
+                    <div className="emoji-picker-container">
+                      <button
+                        type="button"
+                        className="btn-attach-image"
+                        onClick={() => setMostrarEmojis(!mostrarEmojis)}
+                      >
+                        😊 Emoji
+                      </button>
+
+                      {mostrarEmojis && (
+                        <div className="emoji-popover">
+                          <EmojiPicker onEmojiClick={handleEmojiClick} width={300} height={380} />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="post-footer-right">
+                    <span className={`char-counter ${charsRestantes < 20 ? 'warning' : ''}`}>
+                      {charsRestantes}
+                    </span>
+                    <button
+                      type="submit"
+                      className="btn-publish-pill"
+                      disabled={(!novoPost.trim() && !imagemPost) || charsRestantes < 0 || comprimindo}
+                    >
+                      <IconSend /> Publicar
+                    </button>
+                  </div>
                 </div>
               </form>
             </div>
@@ -574,12 +769,20 @@ function App() {
                   )}
 
                   <div className="post-actions">
-                    <button onClick={() => handleCurtir(post.id)}>❤️ {post.likes_count || 0}</button>
-                    <button onClick={() => handleRepostar(post.id)}>🔄 {post.reposts_count || 0}</button>
-                    <button onClick={() => toggleComentarios(post.id)}>💬 {post.comments_count || 0}</button>
+                    <button onClick={() => handleCurtir(post.id)}>
+                      <IconHeart /> {post.likes_count || 0}
+                    </button>
+                    <button onClick={() => handleRepostar(post.id)}>
+                      <IconRepeat /> {post.reposts_count || 0}
+                    </button>
+                    <button onClick={() => toggleComentarios(post.id)}>
+                      <IconMessage /> {post.comments_count || 0}
+                    </button>
 
                     {usuario && usuario.username === post.username && (
-                      <button onClick={() => handleDeletarPost(post.id)} className="btn-delete">🗑️</button>
+                      <button onClick={() => handleDeletarPost(post.id)} className="btn-delete" title="Excluir post">
+                        <IconTrash />
+                      </button>
                     )}
                   </div>
 
