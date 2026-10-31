@@ -53,7 +53,6 @@ function autenticarToken(req, res, next) {
     });
 }
 
-// Opcional para rotas públicas que se adaptam se o usuário estiver logado
 function identificarUsuarioOpcional(req, res, next) {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
@@ -105,6 +104,75 @@ app.post('/login', (req, res) => {
     });
 });
 
+app.get('/users/search', identificarUsuarioOpcional, (req, res) => {
+    const queryStr = req.query.q || '';
+    const usuarioLogadoId = req.usuario ? req.usuario.id : 0;
+
+    const query = `
+        SELECT users.id, users.username, users.avatar,
+        (SELECT COUNT(*) FROM follows WHERE follows.following_id = users.id) AS followers_count,
+        (SELECT COUNT(*) FROM follows WHERE follows.follower_id = ? AND follows.following_id = users.id) AS is_following
+        FROM users
+        WHERE users.username LIKE ? AND users.id != ?
+        LIMIT 10
+    `;
+
+    db.all(query, [usuarioLogadoId, `%${queryStr}%`, usuarioLogadoId], (err, rows) => {
+        if (err) return res.status(500).json({ erro: 'Erro ao pesquisar utilizadores.' });
+        res.json(rows);
+    });
+});
+
+app.get('/users/:id/stats', (req, res) => {
+    const userId = req.params.id;
+    const query = `
+        SELECT 
+        (SELECT COUNT(*) FROM follows WHERE following_id = ?) AS followers_count,
+        (SELECT COUNT(*) FROM follows WHERE follower_id = ?) AS following_count
+    `;
+
+    db.get(query, [userId, userId], (err, row) => {
+        if (err) return res.status(500).json({ erro: 'Erro ao carregar estatísticas.' });
+        res.json(row || { followers_count: 0, following_count: 0 });
+    });
+});
+
+app.get('/users/:id/following', identificarUsuarioOpcional, (req, res) => {
+    const userId = req.params.id;
+    const usuarioLogadoId = req.usuario ? req.usuario.id : 0;
+
+    const query = `
+        SELECT users.id, users.username, users.avatar,
+        (SELECT COUNT(*) FROM follows WHERE follows.follower_id = ? AND follows.following_id = users.id) AS is_following
+        FROM follows
+        JOIN users ON follows.following_id = users.id
+        WHERE follows.follower_id = ?
+    `;
+
+    db.all(query, [usuarioLogadoId, userId], (err, rows) => {
+        if (err) return res.status(500).json({ erro: 'Erro ao carregar lista de quem segue.' });
+        res.json(rows);
+    });
+});
+
+app.get('/users/:id/followers', identificarUsuarioOpcional, (req, res) => {
+    const userId = req.params.id;
+    const usuarioLogadoId = req.usuario ? req.usuario.id : 0;
+
+    const query = `
+        SELECT users.id, users.username, users.avatar,
+        (SELECT COUNT(*) FROM follows WHERE follows.follower_id = ? AND follows.following_id = users.id) AS is_following
+        FROM follows
+        JOIN users ON follows.follower_id = users.id
+        WHERE follows.following_id = ?
+    `;
+
+    db.all(query, [usuarioLogadoId, userId], (err, rows) => {
+        if (err) return res.status(500).json({ erro: 'Erro ao carregar lista de seguidores.' });
+        res.json(rows);
+    });
+});
+
 app.post('/users/avatar', autenticarToken, upload.single('avatar'), (req, res) => {
     if (!req.file) return res.status(400).json({ erro: 'Nenhuma imagem enviada!' });
 
@@ -115,7 +183,6 @@ app.post('/users/avatar', autenticarToken, upload.single('avatar'), (req, res) =
     });
 });
 
-// Alterar Senha (Configurações da Conta)
 app.put('/users/password', autenticarToken, async (req, res) => {
     const { senhaAtual, novaSenha } = req.body;
     if (!senhaAtual || !novaSenha) return res.status(400).json({ erro: 'Informe a senha atual e a nova senha.' });
@@ -134,7 +201,6 @@ app.put('/users/password', autenticarToken, async (req, res) => {
     });
 });
 
-// Excluir Conta do Usuário
 app.delete('/users/me', autenticarToken, (req, res) => {
     db.run(`DELETE FROM users WHERE id = ?`, [req.usuario.id], function(err) {
         if (err) return res.status(500).json({ erro: 'Erro ao excluir a conta.' });
@@ -142,7 +208,6 @@ app.delete('/users/me', autenticarToken, (req, res) => {
     });
 });
 
-// Seguir / Deixar de Seguir (Toggle)
 app.post('/users/:id/follow', autenticarToken, (req, res) => {
     const targetUserId = parseInt(req.params.id);
     const followerId = req.usuario.id;
@@ -163,7 +228,7 @@ app.post('/users/:id/follow', autenticarToken, (req, res) => {
 });
 
 // ==========================================
-// POSTS E FEED
+// POSTS E FEED (Restrito a Utilizadores Logados)
 // ==========================================
 
 app.post('/posts', autenticarToken, upload.single('image'), (req, res) => {
@@ -188,11 +253,11 @@ app.delete('/posts/:id', autenticarToken, (req, res) => {
     });
 });
 
-app.get('/posts', identificarUsuarioOpcional, (req, res) => {
+app.get('/posts', autenticarToken, (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const offset = (page - 1) * limit;
-    const usuarioLogadoId = req.usuario ? req.usuario.id : 0;
+    const usuarioLogadoId = req.usuario.id;
 
     const query = `
         SELECT posts.id, posts.user_id, posts.content, posts.image_url, posts.created_at, 
@@ -213,7 +278,6 @@ app.get('/posts', identificarUsuarioOpcional, (req, res) => {
     });
 });
 
-// Interações (Curtir, Repostar, Comentar)
 app.post('/likes', autenticarToken, (req, res) => {
     const { post_id } = req.body;
     db.run(`INSERT INTO likes (user_id, post_id) VALUES (?, ?)`, [req.usuario.id, post_id], function(err) {
@@ -231,7 +295,7 @@ app.post('/reposts', autenticarToken, (req, res) => {
     const { post_id } = req.body;
     db.run(`INSERT INTO reposts (user_id, post_id) VALUES (?, ?)`, [req.usuario.id, post_id], function(err) {
         if (err) {
-            db.run(`DELETE FROM reposts WHERE user_id = ? AND post_id = ?`, [user_id, post_id], () => {
+            db.run(`DELETE FROM reposts WHERE user_id = ? AND post_id = ?`, [req.usuario.id, post_id], () => {
                 return res.json({ mensagem: 'Repost removido!' });
             });
         } else {

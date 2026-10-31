@@ -10,40 +10,102 @@ function App() {
   const [usuario, setUsuario] = useState(JSON.parse(localStorage.getItem('usuario')) || null);
   const [isRegister, setIsRegister] = useState(false);
 
-  // Formulário Auth
+  const [userStats, setUserStats] = useState({ followers_count: 0, following_count: 0 });
+
+  const [modalFollowType, setModalFollowType] = useState(null);
+  const [listaUsuariosModal, setListaUsuariosModal] = useState([]);
+
+  const [termoBusca, setTermoBusca] = useState('');
+  const [resultadosBusca, setResultadosBusca] = useState([]);
+
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [erro, setErro] = useState('');
 
-  // Modal de Configurações
   const [mostrarConfig, setMostrarConfig] = useState(false);
   const [senhaAtual, setSenhaAtual] = useState('');
   const [novaSenha, setNovaSenha] = useState('');
   const [msgConfig, setMsgConfig] = useState('');
 
-  // Posts e Mídia
   const [posts, setPosts] = useState([]);
   const [novoPost, setNovoPost] = useState('');
   const [imagemPost, setImagemPost] = useState(null);
   const [previewImagem, setPreviewImagem] = useState('');
 
-  // Comentários
   const [comentarioAberto, setComentarioAberto] = useState(null);
   const [comentarios, setComentarios] = useState({});
   const [novoComentario, setNovoComentario] = useState('');
 
   useEffect(() => {
-    carregarPosts();
+    if (token) {
+      carregarPosts();
+      if (usuario && usuario.id) {
+        carregarEstatisticas(usuario.id);
+      }
+    } else {
+      setPosts([]);
+    }
   }, [token]);
 
   const carregarPosts = async () => {
     try {
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const headers = { Authorization: `Bearer ${token}` };
       const res = await axios.get(`${API_URL}/posts?page=1&limit=20`, { headers });
       setPosts(res.data.posts);
     } catch (err) {
       console.error('Erro ao carregar posts:', err);
+    }
+  };
+
+  const carregarEstatisticas = async (userId) => {
+    if (!userId) return;
+    try {
+      const res = await axios.get(`${API_URL}/users/${userId}/stats`);
+      setUserStats(res.data);
+    } catch (err) {
+      console.error('Erro ao carregar estatísticas:', err);
+    }
+  };
+
+  const execBuscarUsuarios = async (query) => {
+    if (!query || query.trim().length === 0) {
+      setResultadosBusca([]);
+      return;
+    }
+    try {
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const res = await axios.get(`${API_URL}/users/search?q=${encodeURIComponent(query.trim())}`, { headers });
+      setResultadosBusca(res.data);
+    } catch (err) {
+      console.error('Erro ao buscar utilizadores:', err);
+    }
+  };
+
+  const handleFormBusca = (e) => {
+    e.preventDefault();
+    execBuscarUsuarios(termoBusca);
+  };
+
+  const handleInputBusca = (e) => {
+    const val = e.target.value;
+    setTermoBusca(val);
+    if (val.trim().length === 0) {
+      setResultadosBusca([]);
+    } else {
+      execBuscarUsuarios(val);
+    }
+  };
+
+  const handleAbrirModalFollowers = async (tipo) => {
+    if (!usuario) return;
+    setModalFollowType(tipo);
+    try {
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const res = await axios.get(`${API_URL}/users/${usuario.id}/${tipo}`, { headers });
+      setListaUsuariosModal(res.data);
+    } catch (err) {
+      console.error('Erro ao buscar lista do modal:', err);
     }
   };
 
@@ -61,6 +123,7 @@ function App() {
         setUsuario(res.data.user);
         localStorage.setItem('token', res.data.token);
         localStorage.setItem('usuario', JSON.stringify(res.data.user));
+        carregarEstatisticas(res.data.user.id);
       }
     } catch (err) {
       setErro(err.response?.data?.erro || 'Erro na operação.');
@@ -71,6 +134,10 @@ function App() {
     setToken('');
     setUsuario(null);
     setMostrarConfig(false);
+    setResultadosBusca([]);
+    setTermoBusca('');
+    setModalFollowType(null);
+    setPosts([]);
     localStorage.clear();
   };
 
@@ -124,7 +191,6 @@ function App() {
       });
       alert('Sua conta foi excluída.');
       handleLogout();
-      carregarPosts();
     } catch (err) {
       alert('Erro ao excluir conta.');
     }
@@ -138,7 +204,12 @@ function App() {
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      carregarPosts();
+
+      await carregarPosts();
+      if (usuario && usuario.id) await carregarEstatisticas(usuario.id);
+
+      if (termoBusca) execBuscarUsuarios(termoBusca);
+      if (modalFollowType) handleAbrirModalFollowers(modalFollowType);
     } catch (err) {
       alert(err.response?.data?.erro || 'Erro ao seguir.');
     }
@@ -213,6 +284,13 @@ function App() {
     }
   };
 
+  const handleKeyDownComentario = (e, postId) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleEnviarComentario(postId);
+    }
+  };
+
   const handleDeletarPost = async (postId) => {
     if (!window.confirm('Excluir este post?')) return;
     try {
@@ -228,7 +306,7 @@ function App() {
       <div className="kaiowa-container">
         <header className="kaiowa-header">
           <div className="logo-area">
-            <h1>Kaiowá</h1>
+            <h1>Kaiowá 🌿</h1>
           </div>
           {usuario && (
             <div className="user-profile-bar">
@@ -245,7 +323,6 @@ function App() {
           )}
         </header>
 
-        {/* Modal / Card de Configurações da Conta */}
         {mostrarConfig && (
           <div className="settings-modal">
             <div className="settings-header">
@@ -283,7 +360,85 @@ function App() {
           </div>
         )}
 
+        {modalFollowType && (
+          <div className="settings-modal">
+            <div className="settings-header">
+              <h3>{modalFollowType === 'following' ? '👥 Pessoas que Você Segue' : '👥 Seus Seguidores'}</h3>
+              <button onClick={() => setModalFollowType(null)} className="btn-close">✕</button>
+            </div>
+            <div className="search-results-list">
+              {listaUsuariosModal.length === 0 ? (
+                <p style={{ color: '#72a884', fontSize: '13px' }}>Nenhum utilizador encontrado.</p>
+              ) : (
+                listaUsuariosModal.map((u) => (
+                  <div key={u.id} className="search-user-item">
+                    <div className="user-info">
+                      <img src={u.avatar || DEFAULT_AVATAR} alt="Avatar" className="comment-avatar" />
+                      <strong>@{u.username}</strong>
+                    </div>
+                    {usuario && usuario.id !== u.id && (
+                      <button
+                        onClick={() => handleSeguir(u.id)}
+                        className={u.is_following ? 'btn-following' : 'btn-follow'}
+                      >
+                        {u.is_following ? 'Seguindo' : '+ Seguir'}
+                      </button>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
         <main className="kaiowa-main">
+          {usuario && (
+            <div className="profile-summary-card">
+              <div className="stats-box">
+                <span onClick={() => handleAbrirModalFollowers('following')} className="clickable-stat">
+                  <strong>{userStats.following_count}</strong> Seguindo
+                </span>
+                <span onClick={() => handleAbrirModalFollowers('followers')} className="clickable-stat">
+                  <strong>{userStats.followers_count}</strong> Seguidores
+                </span>
+              </div>
+
+              <form onSubmit={handleFormBusca} className="search-user-box">
+                <input
+                  type="text"
+                  placeholder="Procurar utilizadores..."
+                  value={termoBusca}
+                  onChange={handleInputBusca}
+                />
+                <button type="submit" className="btn-search">
+                  🔍 Buscar
+                </button>
+              </form>
+
+              {resultadosBusca.length > 0 && (
+                <div className="search-results-list">
+                  {resultadosBusca.map((u) => (
+                    <div key={u.id} className="search-user-item">
+                      <div className="user-info">
+                        <img src={u.avatar || DEFAULT_AVATAR} alt="Avatar" className="comment-avatar" />
+                        <div>
+                          <strong>@{u.username}</strong>
+                          <small>{u.followers_count} seguidores</small>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleSeguir(u.id)}
+                        className={u.is_following ? 'btn-following' : 'btn-follow'}
+                      >
+                        {u.is_following ? 'Seguindo' : '+ Seguir'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {!token ? (
             <div className="auth-box">
               <h2>{isRegister ? 'Criar Conta' : 'Entrar na Kaiowá'}</h2>
@@ -334,72 +489,80 @@ function App() {
 
           <div className="feed-container">
             <h3>Feed da Kaiowá</h3>
-            {posts.map((post) => (
-              <div key={post.id} className="post-card">
-                <div className="post-card-header">
-                  <img src={post.avatar || DEFAULT_AVATAR} alt="Avatar" className="post-avatar" />
-                  <div className="post-user-info">
-                    <div className="user-follow-line">
-                      <strong>@{post.username}</strong>
-                      {usuario && usuario.id !== post.user_id && (
-                        <button
-                          onClick={() => handleSeguir(post.user_id)}
-                          className={post.is_following ? 'btn-following' : 'btn-follow'}
-                        >
-                          {post.is_following ? 'Seguindo' : '+ Seguir'}
-                        </button>
-                      )}
-                    </div>
-                    <small>{new Date(post.created_at).toLocaleDateString()}</small>
-                  </div>
-                </div>
-
-                {post.content && <p className="post-content">{post.content}</p>}
-
-                {post.image_url && (
-                  <div className="post-media">
-                    <img src={post.image_url} alt="Mídia do post" className="post-image" />
-                  </div>
-                )}
-
-                <div className="post-actions">
-                  <button onClick={() => handleCurtir(post.id)}>❤️ {post.likes_count || 0}</button>
-                  <button onClick={() => handleRepostar(post.id)}>🔄 {post.reposts_count || 0}</button>
-                  <button onClick={() => toggleComentarios(post.id)}>💬 {post.comments_count || 0}</button>
-
-                  {usuario && usuario.username === post.username && (
-                    <button onClick={() => handleDeletarPost(post.id)} className="btn-delete">🗑️</button>
-                  )}
-                </div>
-
-                {comentarioAberto === post.id && (
-                  <div className="comments-section">
-                    <div className="comments-list">
-                      {(comentarios[post.id] || []).map((c) => (
-                        <div key={c.id} className="comment-item">
-                          <img src={c.avatar || DEFAULT_AVATAR} alt="Avatar" className="comment-avatar" />
-                          <div className="comment-body">
-                            <strong>@{c.username}</strong>
-                            <p>{c.content}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    {token && (
-                      <div className="comment-input-box">
-                        <input
-                          type="text"
-                          placeholder="Escreva um comentário..."
-                          value={novoComentario}
-                          onChange={(e) => setNovoComentario(e.target.value)}
-                        />
-                        <button onClick={() => handleEnviarComentario(post.id)}>Responder</button>
+            {!token ? (
+              <div className="login-required-card">
+                🔒 <strong>Conteúdo Exclusivo da Comunidade</strong>
+                <p>Faça login ou crie sua conta para ver as publicações do feed.</p>
+              </div>
+            ) : (
+              posts.map((post) => (
+                <div key={post.id} className="post-card">
+                  <div className="post-card-header">
+                    <img src={post.avatar || DEFAULT_AVATAR} alt="Avatar" className="post-avatar" />
+                    <div className="post-user-info">
+                      <div className="user-follow-line">
+                        <strong>@{post.username}</strong>
+                        {usuario && usuario.id !== post.user_id && (
+                          <button
+                            onClick={() => handleSeguir(post.user_id)}
+                            className={post.is_following ? 'btn-following' : 'btn-follow'}
+                          >
+                            {post.is_following ? 'Seguindo' : '+ Seguir'}
+                          </button>
+                        )}
                       </div>
+                      <small>{new Date(post.created_at).toLocaleDateString()}</small>
+                    </div>
+                  </div>
+
+                  {post.content && <p className="post-content">{post.content}</p>}
+
+                  {post.image_url && (
+                    <div className="post-media">
+                      <img src={post.image_url} alt="Mídia do post" className="post-image" />
+                    </div>
+                  )}
+
+                  <div className="post-actions">
+                    <button onClick={() => handleCurtir(post.id)}>❤️ {post.likes_count || 0}</button>
+                    <button onClick={() => handleRepostar(post.id)}>🔄 {post.reposts_count || 0}</button>
+                    <button onClick={() => toggleComentarios(post.id)}>💬 {post.comments_count || 0}</button>
+
+                    {usuario && usuario.username === post.username && (
+                      <button onClick={() => handleDeletarPost(post.id)} className="btn-delete">🗑️</button>
                     )}
                   </div>
-                )}
-              </div>
-            ))}
+
+                  {comentarioAberto === post.id && (
+                    <div className="comments-section">
+                      <div className="comments-list">
+                        {(comentarios[post.id] || []).map((c) => (
+                          <div key={c.id} className="comment-item">
+                            <img src={c.avatar || DEFAULT_AVATAR} alt="Avatar" className="comment-avatar" />
+                            <div className="comment-body">
+                              <strong>@{c.username}</strong>
+                              <p>{c.content}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      {token && (
+                        <div className="comment-input-box">
+                          <input
+                            type="text"
+                            placeholder="Escreva um comentário e pressione Enter..."
+                            value={novoComentario}
+                            onChange={(e) => setNovoComentario(e.target.value)}
+                            onKeyDown={(e) => handleKeyDownComentario(e, post.id)}
+                          />
+                          <button onClick={() => handleEnviarComentario(post.id)}>Responder</button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
           </div>
         </main>
       </div>
