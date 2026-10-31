@@ -11,17 +11,13 @@ const app = express();
 const PORT = 3000;
 const JWT_SECRET = 'kaiowa_chave_secreta_super_segura_123';
 
-// Garantir que a pasta uploads existe
 const uploadsFolder = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsFolder)) {
     fs.mkdirSync(uploadsFolder);
 }
 
-// Configuração do Multer para armazenamento de imagens
 const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, 'uploads/');
-    },
+    destination: (req, file, cb) => cb(null, 'uploads/'),
     filename: (req, file, cb) => {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
         cb(null, uniqueSuffix + path.extname(file.originalname));
@@ -30,7 +26,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({ 
     storage,
-    limits: { fileSize: 5 * 1024 * 1024 }, // Limite de 5MB por arquivo
+    limits: { fileSize: 5 * 1024 * 1024 },
     fileFilter: (req, file, cb) => {
         const allowedTypes = /jpeg|jpg|png|gif|webp/;
         const extName = allowedTypes.test(path.extname(file.originalname).toLowerCase());
@@ -42,7 +38,6 @@ const upload = multer({
 
 app.use(cors());
 app.use(express.json());
-// Servir arquivos estáticos da pasta uploads
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 function autenticarToken(req, res, next) {
@@ -56,6 +51,20 @@ function autenticarToken(req, res, next) {
         req.usuario = usuarioDecodificado;
         next();
     });
+}
+
+// Opcional para rotas públicas que se adaptam se o usuário estiver logado
+function identificarUsuarioOpcional(req, res, next) {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+    if (token) {
+        jwt.verify(token, JWT_SECRET, (err, decodificado) => {
+            if (!err) req.usuario = decodificado;
+            next();
+        });
+    } else {
+        next();
+    }
 }
 
 // ==========================================
@@ -96,7 +105,6 @@ app.post('/login', (req, res) => {
     });
 });
 
-// Upload de Foto de Perfil
 app.post('/users/avatar', autenticarToken, upload.single('avatar'), (req, res) => {
     if (!req.file) return res.status(400).json({ erro: 'Nenhuma imagem enviada!' });
 
@@ -107,14 +115,50 @@ app.post('/users/avatar', autenticarToken, upload.single('avatar'), (req, res) =
     });
 });
 
+// Alterar Senha (Configurações da Conta)
+app.put('/users/password', autenticarToken, async (req, res) => {
+    const { senhaAtual, novaSenha } = req.body;
+    if (!senhaAtual || !novaSenha) return res.status(400).json({ erro: 'Informe a senha atual e a nova senha.' });
+
+    db.get(`SELECT * FROM users WHERE id = ?`, [req.usuario.id], async (err, user) => {
+        if (err || !user) return res.status(404).json({ erro: 'Usuário não encontrado.' });
+
+        const senhaValida = await bcrypt.compare(senhaAtual, user.password);
+        if (!senhaValida) return res.status(400).json({ erro: 'A senha atual está incorreta.' });
+
+        const novaSenhaHash = await bcrypt.hash(novaSenha, 10);
+        db.run(`UPDATE users SET password = ? WHERE id = ?`, [novaSenhaHash, req.usuario.id], (err) => {
+            if (err) return res.status(500).json({ erro: 'Erro ao alterar a senha.' });
+            res.json({ mensagem: 'Senha alterada com sucesso!' });
+        });
+    });
+});
+
 // Excluir Conta do Usuário
 app.delete('/users/me', autenticarToken, (req, res) => {
-    const userId = req.usuario.id;
-
-    // Deletar usuário (graças às foreign keys CASCADE, remove likes, comentarios, posts e reposts)
-    db.run(`DELETE FROM users WHERE id = ?`, [userId], function(err) {
+    db.run(`DELETE FROM users WHERE id = ?`, [req.usuario.id], function(err) {
         if (err) return res.status(500).json({ erro: 'Erro ao excluir a conta.' });
-        res.json({ mensagem: 'Sua conta e todas as suas postagens foram excluídas com sucesso.' });
+        res.json({ mensagem: 'Sua conta foi excluída com sucesso.' });
+    });
+});
+
+// Seguir / Deixar de Seguir (Toggle)
+app.post('/users/:id/follow', autenticarToken, (req, res) => {
+    const targetUserId = parseInt(req.params.id);
+    const followerId = req.usuario.id;
+
+    if (targetUserId === followerId) {
+        return res.status(400).json({ erro: 'Você não pode seguir a si mesmo!' });
+    }
+
+    db.run(`INSERT INTO follows (follower_id, following_id) VALUES (?, ?)`, [followerId, targetUserId], function(err) {
+        if (err) {
+            db.run(`DELETE FROM follows WHERE follower_id = ? AND following_id = ?`, [followerId, targetUserId], () => {
+                return res.json({ mensagem: 'Deixou de seguir!', seguindo: false });
+            });
+        } else {
+            res.status(201).json({ mensagem: 'Seguindo usuário!', seguindo: true });
+        }
     });
 });
 
@@ -132,13 +176,7 @@ app.post('/posts', autenticarToken, upload.single('image'), (req, res) => {
 
     db.run(`INSERT INTO posts (user_id, content, image_url) VALUES (?, ?, ?)`, [req.usuario.id, content || '', imageUrl], function(err) {
         if (err) return res.status(500).json({ erro: 'Erro ao salvar o post.' });
-        res.status(201).json({ 
-            mensagem: 'Post publicado!', 
-            postId: this.lastID, 
-            autor: req.usuario.username, 
-            content,
-            image_url: imageUrl
-        });
+        res.status(201).json({ mensagem: 'Post publicado!', postId: this.lastID });
     });
 });
 
@@ -150,39 +188,37 @@ app.delete('/posts/:id', autenticarToken, (req, res) => {
     });
 });
 
-app.get('/posts', (req, res) => {
+app.get('/posts', identificarUsuarioOpcional, (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const offset = (page - 1) * limit;
+    const usuarioLogadoId = req.usuario ? req.usuario.id : 0;
 
     const query = `
-        SELECT posts.id, posts.content, posts.image_url, posts.created_at, users.username, users.avatar,
+        SELECT posts.id, posts.user_id, posts.content, posts.image_url, posts.created_at, 
+               users.username, users.avatar,
         (SELECT COUNT(*) FROM likes WHERE likes.post_id = posts.id) AS likes_count,
         (SELECT COUNT(*) FROM reposts WHERE reposts.post_id = posts.id) AS reposts_count,
-        (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) AS comments_count
+        (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) AS comments_count,
+        (SELECT COUNT(*) FROM follows WHERE follows.follower_id = ? AND follows.following_id = posts.user_id) AS is_following
         FROM posts
         JOIN users ON posts.user_id = users.id
         ORDER BY posts.created_at DESC
         LIMIT ? OFFSET ?
     `;
 
-    db.all(query, [limit, offset], (err, rows) => {
+    db.all(query, [usuarioLogadoId, limit, offset], (err, rows) => {
         if (err) return res.status(500).json({ erro: 'Erro ao carregar o feed.' });
         res.json({ page, limit, totalPostsPagina: rows.length, posts: rows });
     });
 });
 
-// ==========================================
-// INTERAÇÕES: CURTIR, REPOSTAR, COMENTAR
-// ==========================================
-
+// Interações (Curtir, Repostar, Comentar)
 app.post('/likes', autenticarToken, (req, res) => {
     const { post_id } = req.body;
-    const user_id = req.usuario.id;
-
-    db.run(`INSERT INTO likes (user_id, post_id) VALUES (?, ?)`, [user_id, post_id], function(err) {
+    db.run(`INSERT INTO likes (user_id, post_id) VALUES (?, ?)`, [req.usuario.id, post_id], function(err) {
         if (err) {
-            db.run(`DELETE FROM likes WHERE user_id = ? AND post_id = ?`, [user_id, post_id], () => {
+            db.run(`DELETE FROM likes WHERE user_id = ? AND post_id = ?`, [req.usuario.id, post_id], () => {
                 return res.json({ mensagem: 'Curtida removida!' });
             });
         } else {
@@ -193,9 +229,7 @@ app.post('/likes', autenticarToken, (req, res) => {
 
 app.post('/reposts', autenticarToken, (req, res) => {
     const { post_id } = req.body;
-    const user_id = req.usuario.id;
-
-    db.run(`INSERT INTO reposts (user_id, post_id) VALUES (?, ?)`, [user_id, post_id], function(err) {
+    db.run(`INSERT INTO reposts (user_id, post_id) VALUES (?, ?)`, [req.usuario.id, post_id], function(err) {
         if (err) {
             db.run(`DELETE FROM reposts WHERE user_id = ? AND post_id = ?`, [user_id, post_id], () => {
                 return res.json({ mensagem: 'Repost removido!' });
@@ -214,7 +248,6 @@ app.get('/posts/:id/comments', (req, res) => {
         WHERE comments.post_id = ?
         ORDER BY comments.created_at ASC
     `;
-
     db.all(query, [req.params.id], (err, rows) => {
         if (err) return res.status(500).json({ erro: 'Erro ao buscar comentários.' });
         res.json(rows);
@@ -223,12 +256,9 @@ app.get('/posts/:id/comments', (req, res) => {
 
 app.post('/posts/:id/comments', autenticarToken, (req, res) => {
     const { content } = req.body;
-    const post_id = req.params.id;
-    const user_id = req.usuario.id;
-
     if (!content) return res.status(400).json({ erro: 'Escreva um comentário!' });
 
-    db.run(`INSERT INTO comments (user_id, post_id, content) VALUES (?, ?, ?)`, [user_id, post_id, content], function(err) {
+    db.run(`INSERT INTO comments (user_id, post_id, content) VALUES (?, ?, ?)`, [req.usuario.id, req.params.id, content], function(err) {
         if (err) return res.status(500).json({ erro: 'Erro ao salvar comentário.' });
         res.status(201).json({ mensagem: 'Comentário enviado!', commentId: this.lastID, username: req.usuario.username, content });
     });

@@ -90,7 +90,7 @@ body {
   font-size: 14px;
 }
 
-.btn-logout, .btn-delete-account {
+.btn-logout {
   background: none;
   border: 1px solid #2f3336;
   color: #eff3f4;
@@ -104,9 +104,74 @@ body {
   background-color: rgba(239, 243, 244, 0.1);
 }
 
+.btn-icon {
+  background: none;
+  border: 1px solid #2f3336;
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.btn-icon:hover {
+  background-color: rgba(239, 243, 244, 0.1);
+}
+
+/* Modal de Configurações */
+.settings-modal {
+  background: #16181c;
+  border-bottom: 1px solid #2f3336;
+  padding: 16px 20px;
+}
+
+.settings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.settings-header h3 {
+  margin: 0;
+  font-size: 16px;
+  color: #1d9bf0;
+}
+
+.btn-close {
+  background: none;
+  border: none;
+  color: #71767b;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.settings-form h4, .danger-zone h4 {
+  margin: 8px 0 4px 0;
+  font-size: 14px;
+  color: #e7e9ea;
+}
+
+.danger-zone {
+  border-top: 1px solid #2f3336;
+  padding-top: 12px;
+}
+
 .btn-delete-account {
-  border-color: #f4212e;
+  background: none;
+  border: 1px solid #f4212e;
   color: #f4212e;
+  padding: 6px 12px;
+  border-radius: 16px;
+  font-size: 12px;
+  cursor: pointer;
 }
 
 .btn-delete-account:hover {
@@ -148,7 +213,6 @@ input:focus, textarea:focus {
   border-radius: 20px;
   font-weight: bold;
   cursor: pointer;
-  transition: background-color 0.2s ease;
 }
 
 .btn-primary:hover {
@@ -163,7 +227,7 @@ input:focus, textarea:focus {
   cursor: pointer;
 }
 
-/* Post Creator */
+/* Criador de Post */
 .post-create-box {
   padding: 16px;
   border-bottom: 1px solid #2f3336;
@@ -231,10 +295,6 @@ input:focus, textarea:focus {
   cursor: pointer;
 }
 
-.btn-attach-image:hover {
-  background: rgba(29, 155, 240, 0.2);
-}
-
 /* Feed */
 .feed-container {
   padding: 16px;
@@ -274,7 +334,13 @@ input:focus, textarea:focus {
   flex-direction: column;
 }
 
-.post-user-info strong {
+.user-follow-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.user-follow-line strong {
   color: #fff;
   font-size: 15px;
 }
@@ -282,6 +348,28 @@ input:focus, textarea:focus {
 .post-user-info small {
   color: #71767b;
   font-size: 12px;
+}
+
+.btn-follow {
+  background-color: #eff3f4;
+  color: #0f1419;
+  border: none;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-weight: bold;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.btn-following {
+  background: none;
+  border: 1px solid #536471;
+  color: #eff3f4;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-weight: bold;
+  font-size: 11px;
+  cursor: pointer;
 }
 
 .post-content {
@@ -306,7 +394,6 @@ input:focus, textarea:focus {
   display: flex;
   gap: 10px;
   margin-top: 14px;
-  flex-wrap: wrap;
 }
 
 .post-actions button {
@@ -317,10 +404,6 @@ input:focus, textarea:focus {
   border-radius: 18px;
   cursor: pointer;
   font-size: 13px;
-}
-
-.post-actions button:hover {
-  background-color: rgba(239, 243, 244, 0.1);
 }
 
 .btn-delete {
@@ -386,16 +469,6 @@ input:focus, textarea:focus {
   font-size: 13px;
 }
 
-.error-message {
-  color: #f4212e;
-  margin-bottom: 10px;
-}
-
-/* ==========================================
-   RESPONSIVIDADE (MOBILE / TABLET / DESKTOP)
-   ========================================== */
-
-/* Telas Pequenas (Smartphones - até 480px) */
 @media (max-width: 480px) {
   .kaiowa-header {
     flex-direction: column;
@@ -406,26 +479,5 @@ input:focus, textarea:focus {
   .user-profile-bar {
     width: 100%;
     justify-content: space-between;
-  }
-
-  .user-name {
-    font-size: 13px;
-  }
-
-  .btn-logout, .btn-delete-account {
-    padding: 4px 8px;
-    font-size: 11px;
-  }
-
-  .post-actions button {
-    padding: 5px 10px;
-    font-size: 12px;
-  }
-}
-
-/* Tablets e Telas Médias (481px a 768px) */
-@media (min-width: 481px) and (max-width: 768px) {
-  .kaiowa-container {
-    max-width: 90%;
   }
 }

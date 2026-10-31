@@ -10,27 +10,37 @@ function App() {
   const [usuario, setUsuario] = useState(JSON.parse(localStorage.getItem('usuario')) || null);
   const [isRegister, setIsRegister] = useState(false);
 
+  // Formulário Auth
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [erro, setErro] = useState('');
 
+  // Modal de Configurações
+  const [mostrarConfig, setMostrarConfig] = useState(false);
+  const [senhaAtual, setSenhaAtual] = useState('');
+  const [novaSenha, setNovaSenha] = useState('');
+  const [msgConfig, setMsgConfig] = useState('');
+
+  // Posts e Mídia
   const [posts, setPosts] = useState([]);
   const [novoPost, setNovoPost] = useState('');
   const [imagemPost, setImagemPost] = useState(null);
   const [previewImagem, setPreviewImagem] = useState('');
 
+  // Comentários
   const [comentarioAberto, setComentarioAberto] = useState(null);
   const [comentarios, setComentarios] = useState({});
   const [novoComentario, setNovoComentario] = useState('');
 
   useEffect(() => {
     carregarPosts();
-  }, []);
+  }, [token]);
 
   const carregarPosts = async () => {
     try {
-      const res = await axios.get(`${API_URL}/posts?page=1&limit=20`);
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const res = await axios.get(`${API_URL}/posts?page=1&limit=20`, { headers });
       setPosts(res.data.posts);
     } catch (err) {
       console.error('Erro ao carregar posts:', err);
@@ -60,10 +70,10 @@ function App() {
   const handleLogout = () => {
     setToken('');
     setUsuario(null);
+    setMostrarConfig(false);
     localStorage.clear();
   };
 
-  // Upload de Foto de Perfil
   const handleUploadAvatar = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -73,26 +83,38 @@ function App() {
 
     try {
       const res = await axios.post(`${API_URL}/users/avatar`, formData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'multipart/form-data'
-        }
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
       });
-
       const usuarioAtualizado = { ...usuario, avatar: res.data.avatar };
       setUsuario(usuarioAtualizado);
       localStorage.setItem('usuario', JSON.stringify(usuarioAtualizado));
       alert('Foto de perfil atualizada!');
       carregarPosts();
     } catch (err) {
-      alert(err.response?.data?.erro || 'Erro ao atualizar foto de perfil.');
+      alert('Erro ao atualizar avatar.');
     }
   };
 
-  // Excluir Conta do Usuário
+  const handleAlterarSenha = async (e) => {
+    e.preventDefault();
+    setMsgConfig('');
+    try {
+      const res = await axios.put(
+        `${API_URL}/users/password`,
+        { senhaAtual, novaSenha },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setMsgConfig(res.data.mensagem);
+      setSenhaAtual('');
+      setNovaSenha('');
+    } catch (err) {
+      setMsgConfig(err.response?.data?.erro || 'Erro ao alterar senha.');
+    }
+  };
+
   const handleExcluirConta = async () => {
     const confirmacao = window.confirm(
-      'ATENÇÃO: Você tem certeza que deseja excluir sua conta? Todas as suas postagens e dados serão deletados permanentemente.'
+      'ATENÇÃO: Deseja realmente excluir sua conta? Todas as suas postagens serão deletadas permanentemente.'
     );
     if (!confirmacao) return;
 
@@ -100,47 +122,46 @@ function App() {
       await axios.delete(`${API_URL}/users/me`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      alert('Sua conta foi excluída com sucesso.');
+      alert('Sua conta foi excluída.');
       handleLogout();
       carregarPosts();
     } catch (err) {
-      alert(err.response?.data?.erro || 'Erro ao excluir conta.');
+      alert('Erro ao excluir conta.');
     }
   };
 
-  // Manipular imagem anexada ao Post
-  const handleImagemPostChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setImagemPost(file);
-      setPreviewImagem(URL.createObjectURL(file));
+  const handleSeguir = async (targetUserId) => {
+    if (!token) return alert('Faça login para seguir usuários!');
+    try {
+      await axios.post(
+        `${API_URL}/users/${targetUserId}/follow`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      carregarPosts();
+    } catch (err) {
+      alert(err.response?.data?.erro || 'Erro ao seguir.');
     }
   };
 
-  // Criar Post com Texto e/ou Imagem
   const handleCriarPost = async (e) => {
     e.preventDefault();
     if (!novoPost.trim() && !imagemPost) return;
 
     const formData = new FormData();
     formData.append('content', novoPost);
-    if (imagemPost) {
-      formData.append('image', imagemPost);
-    }
+    if (imagemPost) formData.append('image', imagemPost);
 
     try {
       await axios.post(`${API_URL}/posts`, formData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'multipart/form-data'
-        }
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
       });
       setNovoPost('');
       setImagemPost(null);
       setPreviewImagem('');
       carregarPosts();
     } catch (err) {
-      alert(err.response?.data?.erro || 'Erro ao publicar.');
+      alert('Erro ao publicar post.');
     }
   };
 
@@ -198,7 +219,7 @@ function App() {
       await axios.delete(`${API_URL}/posts/${postId}`, { headers: { Authorization: `Bearer ${token}` } });
       carregarPosts();
     } catch (err) {
-      alert(err.response?.data?.erro || 'Erro ao deletar.');
+      alert('Erro ao deletar post.');
     }
   };
 
@@ -211,25 +232,56 @@ function App() {
           </div>
           {usuario && (
             <div className="user-profile-bar">
-              <label htmlFor="avatar-upload" className="avatar-label" title="Clique para alterar a foto de perfil">
+              <label htmlFor="avatar-upload" className="avatar-label" title="Alterar foto de perfil">
                 <img src={usuario.avatar || DEFAULT_AVATAR} alt="Avatar" className="user-avatar-header" />
                 <span className="avatar-overlay">📷</span>
               </label>
-              <input
-                id="avatar-upload"
-                type="file"
-                accept="image/*"
-                onChange={handleUploadAvatar}
-                style={{ display: 'none' }}
-              />
+              <input id="avatar-upload" type="file" accept="image/*" onChange={handleUploadAvatar} style={{ display: 'none' }} />
+              
               <span className="user-name">@{usuario.username}</span>
+              <button onClick={() => setMostrarConfig(!mostrarConfig)} className="btn-icon" title="Configurações">⚙️</button>
               <button onClick={handleLogout} className="btn-logout">Sair</button>
-              <button onClick={handleExcluirConta} className="btn-delete-account" title="Excluir minha conta">
-                🗑️ Conta
-              </button>
             </div>
           )}
         </header>
+
+        {/* Modal / Card de Configurações da Conta */}
+        {mostrarConfig && (
+          <div className="settings-modal">
+            <div className="settings-header">
+              <h3>⚙️ Configurações da Conta</h3>
+              <button onClick={() => setMostrarConfig(false)} className="btn-close">✕</button>
+            </div>
+
+            {msgConfig && <div className="info-message">{msgConfig}</div>}
+
+            <form onSubmit={handleAlterarSenha} className="settings-form">
+              <h4>Trocar Senha</h4>
+              <input
+                type="password"
+                placeholder="Senha Atual"
+                value={senhaAtual}
+                onChange={(e) => setSenhaAtual(e.target.value)}
+                required
+              />
+              <input
+                type="password"
+                placeholder="Nova Senha"
+                value={novaSenha}
+                onChange={(e) => setNovaSenha(e.target.value)}
+                required
+              />
+              <button type="submit" className="btn-primary">Atualizar Senha</button>
+            </form>
+
+            <div className="danger-zone">
+              <h4>Zona de Perigo</h4>
+              <button onClick={handleExcluirConta} className="btn-delete-account">
+                🗑️ Excluir Minha Conta
+              </button>
+            </div>
+          </div>
+        )}
 
         <main className="kaiowa-main">
           {!token ? (
@@ -238,31 +290,11 @@ function App() {
               {erro && <div className="error-message">{erro}</div>}
               <form onSubmit={handleAuth}>
                 {isRegister && (
-                  <input
-                    type="text"
-                    placeholder="Username"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    required
-                  />
+                  <input type="text" placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} required />
                 )}
-                <input
-                  type="email"
-                  placeholder="E-mail"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-                <input
-                  type="password"
-                  placeholder="Senha"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-                <button type="submit" className="btn-primary">
-                  {isRegister ? 'Cadastrar' : 'Entrar'}
-                </button>
+                <input type="email" placeholder="E-mail" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                <input type="password" placeholder="Senha" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                <button type="submit" className="btn-primary">{isRegister ? 'Cadastrar' : 'Entrar'}</button>
               </form>
               <button onClick={() => setIsRegister(!isRegister)} className="btn-toggle">
                 {isRegister ? 'Já tem conta? Entre.' : 'Não tem conta? Cadastre-se.'}
@@ -284,27 +316,16 @@ function App() {
                 {previewImagem && (
                   <div className="image-preview-container">
                     <img src={previewImagem} alt="Pré-visualização" className="image-preview" />
-                    <button
-                      type="button"
-                      className="btn-remove-preview"
-                      onClick={() => { setImagemPost(null); setPreviewImagem(''); }}
-                    >
-                      ✕
-                    </button>
+                    <button type="button" className="btn-remove-preview" onClick={() => { setImagemPost(null); setPreviewImagem(''); }}>✕</button>
                   </div>
                 )}
 
                 <div className="post-form-footer">
-                  <label htmlFor="post-image-upload" className="btn-attach-image">
-                    🖼️ Foto
-                  </label>
-                  <input
-                    id="post-image-upload"
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImagemPostChange}
-                    style={{ display: 'none' }}
-                  />
+                  <label htmlFor="post-image-upload" className="btn-attach-image">🖼️ Foto</label>
+                  <input id="post-image-upload" type="file" accept="image/*" onChange={(e) => {
+                    const file = e.target.files[0];
+                    if (file) { setImagemPost(file); setPreviewImagem(URL.createObjectURL(file)); }
+                  }} style={{ display: 'none' }} />
                   <button type="submit" className="btn-primary">Publicar</button>
                 </div>
               </form>
@@ -318,7 +339,17 @@ function App() {
                 <div className="post-card-header">
                   <img src={post.avatar || DEFAULT_AVATAR} alt="Avatar" className="post-avatar" />
                   <div className="post-user-info">
-                    <strong>@{post.username}</strong>
+                    <div className="user-follow-line">
+                      <strong>@{post.username}</strong>
+                      {usuario && usuario.id !== post.user_id && (
+                        <button
+                          onClick={() => handleSeguir(post.user_id)}
+                          className={post.is_following ? 'btn-following' : 'btn-follow'}
+                        >
+                          {post.is_following ? 'Seguindo' : '+ Seguir'}
+                        </button>
+                      )}
+                    </div>
                     <small>{new Date(post.created_at).toLocaleDateString()}</small>
                   </div>
                 </div>
