@@ -2,14 +2,48 @@ const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 const db = require('./database');
 
 const app = express();
 const PORT = 3000;
 const JWT_SECRET = 'kaiowa_chave_secreta_super_segura_123';
 
+// Garantir que a pasta uploads existe
+const uploadsFolder = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsFolder)) {
+    fs.mkdirSync(uploadsFolder);
+}
+
+// Configuração do Multer para armazenamento de imagens
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, 'uploads/');
+    },
+    filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, uniqueSuffix + path.extname(file.originalname));
+    }
+});
+
+const upload = multer({ 
+    storage,
+    limits: { fileSize: 5 * 1024 * 1024 }, // Limite de 5MB por arquivo
+    fileFilter: (req, file, cb) => {
+        const allowedTypes = /jpeg|jpg|png|gif|webp/;
+        const extName = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+        const mimeType = allowedTypes.test(file.mimetype);
+        if (extName && mimeType) return cb(null, true);
+        cb(new Error('Apenas imagens são permitidas!'));
+    }
+});
+
 app.use(cors());
 app.use(express.json());
+// Servir arquivos estáticos da pasta uploads
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 function autenticarToken(req, res, next) {
     const authHeader = req.headers['authorization'];
@@ -54,21 +88,57 @@ app.post('/login', (req, res) => {
         if (!senhaValida) return res.status(401).json({ erro: 'Credenciais inválidas.' });
 
         const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '8h' });
-        res.json({ mensagem: 'Login realizado com sucesso!', token, user: { id: user.id, username: user.username, email: user.email } });
+        res.json({ 
+            mensagem: 'Login realizado com sucesso!', 
+            token, 
+            user: { id: user.id, username: user.username, email: user.email, avatar: user.avatar || '' } 
+        });
+    });
+});
+
+// Upload de Foto de Perfil
+app.post('/users/avatar', autenticarToken, upload.single('avatar'), (req, res) => {
+    if (!req.file) return res.status(400).json({ erro: 'Nenhuma imagem enviada!' });
+
+    const avatarUrl = `http://localhost:3000/uploads/${req.file.filename}`;
+    db.run(`UPDATE users SET avatar = ? WHERE id = ?`, [avatarUrl, req.usuario.id], function(err) {
+        if (err) return res.status(500).json({ erro: 'Erro ao atualizar foto de perfil.' });
+        res.json({ mensagem: 'Foto de perfil atualizada!', avatar: avatarUrl });
+    });
+});
+
+// Excluir Conta do Usuário
+app.delete('/users/me', autenticarToken, (req, res) => {
+    const userId = req.usuario.id;
+
+    // Deletar usuário (graças às foreign keys CASCADE, remove likes, comentarios, posts e reposts)
+    db.run(`DELETE FROM users WHERE id = ?`, [userId], function(err) {
+        if (err) return res.status(500).json({ erro: 'Erro ao excluir a conta.' });
+        res.json({ mensagem: 'Sua conta e todas as suas postagens foram excluídas com sucesso.' });
     });
 });
 
 // ==========================================
-// POSTS & FEED (Com contadores de Likes, Reposts e Comentários)
+// POSTS E FEED
 // ==========================================
 
-app.post('/posts', autenticarToken, (req, res) => {
+app.post('/posts', autenticarToken, upload.single('image'), (req, res) => {
     const { content } = req.body;
-    if (!content) return res.status(400).json({ erro: 'Informe o conteúdo do post!' });
+    const imageUrl = req.file ? `http://localhost:3000/uploads/${req.file.filename}` : '';
 
-    db.run(`INSERT INTO posts (user_id, content) VALUES (?, ?)`, [req.usuario.id, content], function(err) {
+    if (!content && !imageUrl) {
+        return res.status(400).json({ erro: 'O post deve conter texto ou uma imagem!' });
+    }
+
+    db.run(`INSERT INTO posts (user_id, content, image_url) VALUES (?, ?, ?)`, [req.usuario.id, content || '', imageUrl], function(err) {
         if (err) return res.status(500).json({ erro: 'Erro ao salvar o post.' });
-        res.status(201).json({ mensagem: 'Post publicado!', postId: this.lastID, autor: req.usuario.username, content });
+        res.status(201).json({ 
+            mensagem: 'Post publicado!', 
+            postId: this.lastID, 
+            autor: req.usuario.username, 
+            content,
+            image_url: imageUrl
+        });
     });
 });
 
@@ -86,7 +156,7 @@ app.get('/posts', (req, res) => {
     const offset = (page - 1) * limit;
 
     const query = `
-        SELECT posts.id, posts.content, posts.created_at, users.username,
+        SELECT posts.id, posts.content, posts.image_url, posts.created_at, users.username, users.avatar,
         (SELECT COUNT(*) FROM likes WHERE likes.post_id = posts.id) AS likes_count,
         (SELECT COUNT(*) FROM reposts WHERE reposts.post_id = posts.id) AS reposts_count,
         (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) AS comments_count
@@ -106,14 +176,12 @@ app.get('/posts', (req, res) => {
 // INTERAÇÕES: CURTIR, REPOSTAR, COMENTAR
 // ==========================================
 
-// Curtir / Descurtir (Toggle)
 app.post('/likes', autenticarToken, (req, res) => {
     const { post_id } = req.body;
     const user_id = req.usuario.id;
 
     db.run(`INSERT INTO likes (user_id, post_id) VALUES (?, ?)`, [user_id, post_id], function(err) {
         if (err) {
-            // Se já curtiu, descurte
             db.run(`DELETE FROM likes WHERE user_id = ? AND post_id = ?`, [user_id, post_id], () => {
                 return res.json({ mensagem: 'Curtida removida!' });
             });
@@ -123,7 +191,6 @@ app.post('/likes', autenticarToken, (req, res) => {
     });
 });
 
-// Repostar / Desfazer Repost (Toggle)
 app.post('/reposts', autenticarToken, (req, res) => {
     const { post_id } = req.body;
     const user_id = req.usuario.id;
@@ -139,10 +206,9 @@ app.post('/reposts', autenticarToken, (req, res) => {
     });
 });
 
-// Buscar comentários de um post
 app.get('/posts/:id/comments', (req, res) => {
     const query = `
-        SELECT comments.id, comments.content, comments.created_at, users.username 
+        SELECT comments.id, comments.content, comments.created_at, users.username, users.avatar 
         FROM comments
         JOIN users ON comments.user_id = users.id
         WHERE comments.post_id = ?
@@ -155,7 +221,6 @@ app.get('/posts/:id/comments', (req, res) => {
     });
 });
 
-// Adicionar Comentário
 app.post('/posts/:id/comments', autenticarToken, (req, res) => {
     const { content } = req.body;
     const post_id = req.params.id;

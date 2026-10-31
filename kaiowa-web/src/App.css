@@ -1,3 +1,7 @@
+* {
+  box-sizing: border-box;
+}
+
 body {
   margin: 0;
   background-color: #0f1419;
@@ -5,40 +9,120 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
+.kaiowa-app-wrapper {
+  display: flex;
+  justify-content: center;
+  min-height: 100vh;
+  width: 100%;
+}
+
 .kaiowa-container {
-  max-width: 600px;
-  margin: 0 auto;
+  width: 100%;
+  max-width: 650px;
   min-height: 100vh;
   border-left: 1px solid #2f3336;
   border-right: 1px solid #2f3336;
+  background-color: #000000;
 }
 
+/* Header */
 .kaiowa-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 15px 20px;
+  padding: 12px 16px;
   border-bottom: 1px solid #2f3336;
   position: sticky;
   top: 0;
-  background: rgba(15, 20, 25, 0.85);
+  background: rgba(0, 0, 0, 0.85);
   backdrop-filter: blur(12px);
+  z-index: 100;
 }
 
 .kaiowa-header h1 {
   margin: 0;
+  font-size: 22px;
   color: #1d9bf0;
 }
 
-.auth-box, .post-create-box {
-  padding: 20px;
+.user-profile-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.avatar-label {
+  position: relative;
+  cursor: pointer;
+  display: inline-block;
+}
+
+.user-avatar-header {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #1d9bf0;
+}
+
+.avatar-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  opacity: 0;
+  font-size: 14px;
+  transition: opacity 0.2s ease;
+}
+
+.avatar-label:hover .avatar-overlay {
+  opacity: 1;
+}
+
+.user-name {
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.btn-logout, .btn-delete-account {
+  background: none;
+  border: 1px solid #2f3336;
+  color: #eff3f4;
+  padding: 6px 12px;
+  border-radius: 16px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.btn-logout:hover {
+  background-color: rgba(239, 243, 244, 0.1);
+}
+
+.btn-delete-account {
+  border-color: #f4212e;
+  color: #f4212e;
+}
+
+.btn-delete-account:hover {
+  background-color: rgba(244, 33, 46, 0.1);
+}
+
+/* Auth Form */
+.auth-box {
+  padding: 24px 16px;
   border-bottom: 1px solid #2f3336;
 }
 
 form {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
 input, textarea {
@@ -48,6 +132,12 @@ input, textarea {
   padding: 12px;
   border-radius: 8px;
   font-size: 15px;
+  width: 100%;
+}
+
+input:focus, textarea:focus {
+  outline: none;
+  border-color: #1d9bf0;
 }
 
 .btn-primary {
@@ -58,53 +148,165 @@ input, textarea {
   border-radius: 20px;
   font-weight: bold;
   cursor: pointer;
+  transition: background-color 0.2s ease;
 }
 
-.btn-logout {
-  background: none;
-  border: 1px solid #2f3336;
-  color: #fff;
-  margin-left: 10px;
-  padding: 5px 10px;
-  border-radius: 12px;
-  cursor: pointer;
+.btn-primary:hover {
+  background-color: #1a8cd8;
 }
 
 .btn-toggle {
   background: none;
   border: none;
   color: #1d9bf0;
-  margin-top: 10px;
+  margin-top: 12px;
   cursor: pointer;
 }
 
+/* Post Creator */
+.post-create-box {
+  padding: 16px;
+  border-bottom: 1px solid #2f3336;
+}
+
+.post-input-wrapper {
+  display: flex;
+  gap: 12px;
+}
+
+.user-avatar-post {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.post-create-box textarea {
+  border: none;
+  background: transparent;
+  resize: none;
+  font-size: 16px;
+}
+
+.image-preview-container {
+  position: relative;
+  margin-top: 10px;
+}
+
+.image-preview {
+  width: 100%;
+  max-height: 300px;
+  object-fit: cover;
+  border-radius: 14px;
+}
+
+.btn-remove-preview {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+}
+
+.post-form-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #2f3336;
+}
+
+.btn-attach-image {
+  background: rgba(29, 155, 240, 0.1);
+  color: #1d9bf0;
+  padding: 6px 14px;
+  border-radius: 16px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.btn-attach-image:hover {
+  background: rgba(29, 155, 240, 0.2);
+}
+
+/* Feed */
 .feed-container {
-  padding: 20px;
+  padding: 16px;
+}
+
+.feed-container h3 {
+  margin-top: 0;
+  font-size: 18px;
+  border-bottom: 1px solid #2f3336;
+  padding-bottom: 8px;
 }
 
 .post-card {
   background: #16181c;
   border: 1px solid #2f3336;
-  border-radius: 12px;
-  padding: 15px;
-  margin-bottom: 15px;
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 16px;
 }
 
-.post-header {
+.post-card-header {
   display: flex;
-  justify-content: space-between;
-  color: #71767b;
-  margin-bottom: 8px;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
 }
 
-.post-header strong {
+.post-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.post-user-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.post-user-info strong {
   color: #fff;
+  font-size: 15px;
+}
+
+.post-user-info small {
+  color: #71767b;
+  font-size: 12px;
+}
+
+.post-content {
+  font-size: 15px;
+  line-height: 1.4;
+  margin: 10px 0;
+  word-break: break-word;
+}
+
+.post-media {
+  margin-top: 10px;
+}
+
+.post-image {
+  width: 100%;
+  max-height: 400px;
+  object-fit: cover;
+  border-radius: 12px;
 }
 
 .post-actions {
   display: flex;
-  gap: 12px;
-  margin-top: 12px;
+  gap: 10px;
+  margin-top: 14px;
+  flex-wrap: wrap;
 }
 
 .post-actions button {
@@ -112,11 +314,13 @@ input, textarea {
   border: 1px solid #2f3336;
   color: #e7e9ea;
   padding: 6px 14px;
-  border-radius: 20px;
+  border-radius: 18px;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 5px;
+  font-size: 13px;
+}
+
+.post-actions button:hover {
+  background-color: rgba(239, 243, 244, 0.1);
 }
 
 .btn-delete {
@@ -124,15 +328,41 @@ input, textarea {
   color: #f4212e !important;
 }
 
+/* Comentários */
 .comments-section {
-  margin-top: 15px;
-  padding-top: 10px;
+  margin-top: 14px;
+  padding-top: 12px;
   border-top: 1px solid #2f3336;
 }
 
 .comment-item {
-  font-size: 14px;
-  margin-bottom: 6px;
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.comment-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.comment-body {
+  background: #000000;
+  padding: 8px 12px;
+  border-radius: 12px;
+  flex: 1;
+}
+
+.comment-body strong {
+  font-size: 13px;
+  color: #1d9bf0;
+}
+
+.comment-body p {
+  margin: 4px 0 0 0;
+  font-size: 13px;
 }
 
 .comment-input-box {
@@ -142,20 +372,60 @@ input, textarea {
 }
 
 .comment-input-box input {
-  flex: 1;
-  padding: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
 }
 
 .comment-input-box button {
   background: #1d9bf0;
   color: white;
   border: none;
-  border-radius: 8px;
-  padding: 0 15px;
+  border-radius: 12px;
+  padding: 0 14px;
   cursor: pointer;
+  font-size: 13px;
 }
 
 .error-message {
   color: #f4212e;
   margin-bottom: 10px;
+}
+
+/* ==========================================
+   RESPONSIVIDADE (MOBILE / TABLET / DESKTOP)
+   ========================================== */
+
+/* Telas Pequenas (Smartphones - até 480px) */
+@media (max-width: 480px) {
+  .kaiowa-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .user-profile-bar {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .user-name {
+    font-size: 13px;
+  }
+
+  .btn-logout, .btn-delete-account {
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+
+  .post-actions button {
+    padding: 5px 10px;
+    font-size: 12px;
+  }
+}
+
+/* Tablets e Telas Médias (481px a 768px) */
+@media (min-width: 481px) and (max-width: 768px) {
+  .kaiowa-container {
+    max-width: 90%;
+  }
 }
