@@ -26,11 +26,10 @@ if (isPostgres) {
   });
 }
 
-// Wrapper para unificar as chamadas de banco (pg vs sqlite3)
+// Adapter para padronizar chamadas entre pg e sqlite3
 const db = {
   query: async (text, params = []) => {
     if (isPostgres) {
-      // Converte parâmetros ? do SQLite para $1, $2, $3 no PostgreSQL
       let paramIndex = 1;
       const pgText = text.replace(/\?/g, () => `$${paramIndex++}`);
       const res = await pool.query(pgText, params);
@@ -66,7 +65,6 @@ const db = {
       let paramIndex = 1;
       const pgText = text.replace(/\?/g, () => `$${paramIndex++}`);
       
-      // Adiciona RETURNING id para inserções retornarem o ID no Postgres
       let finalSql = pgText;
       if (pgText.trim().toUpperCase().startsWith('INSERT INTO') && !pgText.toUpperCase().includes('RETURNING')) {
         finalSql += ' RETURNING id';
@@ -88,163 +86,172 @@ const db = {
   }
 };
 
-// Inicialização automática das tabelas
+let initPromise = null;
+
 async function initTables() {
-  const usersSql = isPostgres ? `
-    CREATE TABLE IF NOT EXISTS users (
-      id SERIAL PRIMARY KEY,
-      username VARCHAR(255) UNIQUE NOT NULL,
-      email VARCHAR(255) UNIQUE NOT NULL,
-      password VARCHAR(255) NOT NULL,
-      avatar TEXT,
-      token TEXT,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-  ` : `
-    CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      username TEXT UNIQUE NOT NULL,
-      email TEXT UNIQUE NOT NULL,
-      password TEXT NOT NULL,
-      avatar TEXT,
-      token TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-  `;
+  if (initPromise) return initPromise;
 
-  const postsSql = isPostgres ? `
-    CREATE TABLE IF NOT EXISTS posts (
-      id SERIAL PRIMARY KEY,
-      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      content TEXT,
-      image_url TEXT,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-  ` : `
-    CREATE TABLE IF NOT EXISTS posts (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER NOT NULL,
-      content TEXT,
-      image_url TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
-    );
-  `;
+  initPromise = (async () => {
+    const usersSql = isPostgres ? `
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        username VARCHAR(255) UNIQUE NOT NULL,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        password VARCHAR(255) NOT NULL,
+        avatar TEXT,
+        token TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    ` : `
+      CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE NOT NULL,
+        email TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL,
+        avatar TEXT,
+        token TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+    `;
 
-  const likesSql = isPostgres ? `
-    CREATE TABLE IF NOT EXISTS likes (
-      id SERIAL PRIMARY KEY,
-      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-  ` : `
-    CREATE TABLE IF NOT EXISTS likes (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER NOT NULL,
-      post_id INTEGER NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
-      FOREIGN KEY (post_id) REFERENCES posts (id) ON DELETE CASCADE
-    );
-  `;
+    const postsSql = isPostgres ? `
+      CREATE TABLE IF NOT EXISTS posts (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        content TEXT,
+        image_url TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    ` : `
+      CREATE TABLE IF NOT EXISTS posts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        content TEXT,
+        image_url TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+      );
+    `;
 
-  const commentsSql = isPostgres ? `
-    CREATE TABLE IF NOT EXISTS comments (
-      id SERIAL PRIMARY KEY,
-      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
-      content TEXT NOT NULL,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-  ` : `
-    CREATE TABLE IF NOT EXISTS comments (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER NOT NULL,
-      post_id INTEGER NOT NULL,
-      content TEXT NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
-      FOREIGN KEY (post_id) REFERENCES posts (id) ON DELETE CASCADE
-    );
-  `;
+    const likesSql = isPostgres ? `
+      CREATE TABLE IF NOT EXISTS likes (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    ` : `
+      CREATE TABLE IF NOT EXISTS likes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        post_id INTEGER NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+        FOREIGN KEY (post_id) REFERENCES posts (id) ON DELETE CASCADE
+      );
+    `;
 
-  const commentReactionsSql = isPostgres ? `
-    CREATE TABLE IF NOT EXISTS comment_reactions (
-      id SERIAL PRIMARY KEY,
-      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      comment_id INTEGER NOT NULL REFERENCES comments(id) ON DELETE CASCADE,
-      emoji VARCHAR(50) NOT NULL,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-  ` : `
-    CREATE TABLE IF NOT EXISTS comment_reactions (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER NOT NULL,
-      comment_id INTEGER NOT NULL,
-      emoji TEXT NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
-      FOREIGN KEY (comment_id) REFERENCES comments (id) ON DELETE CASCADE
-    );
-  `;
+    const commentsSql = isPostgres ? `
+      CREATE TABLE IF NOT EXISTS comments (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+        content TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    ` : `
+      CREATE TABLE IF NOT EXISTS comments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        post_id INTEGER NOT NULL,
+        content TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+        FOREIGN KEY (post_id) REFERENCES posts (id) ON DELETE CASCADE
+      );
+    `;
 
-  const notificationsSql = isPostgres ? `
-    CREATE TABLE IF NOT EXISTS notifications (
-      id SERIAL PRIMARY KEY,
-      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      actor_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      type VARCHAR(50) NOT NULL,
-      post_id INTEGER,
-      is_read INTEGER DEFAULT 0,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-  ` : `
-    CREATE TABLE IF NOT EXISTS notifications (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER NOT NULL,
-      actor_id INTEGER NOT NULL,
-      type TEXT NOT NULL,
-      post_id INTEGER,
-      is_read INTEGER DEFAULT 0,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
-      FOREIGN KEY (actor_id) REFERENCES users (id) ON DELETE CASCADE
-    );
-  `;
+    const commentReactionsSql = isPostgres ? `
+      CREATE TABLE IF NOT EXISTS comment_reactions (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        comment_id INTEGER NOT NULL REFERENCES comments(id) ON DELETE CASCADE,
+        emoji VARCHAR(50) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    ` : `
+      CREATE TABLE IF NOT EXISTS comment_reactions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        comment_id INTEGER NOT NULL,
+        emoji TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+        FOREIGN KEY (comment_id) REFERENCES comments (id) ON DELETE CASCADE
+      );
+    `;
 
-  const followsSql = isPostgres ? `
-    CREATE TABLE IF NOT EXISTS follows (
-      id SERIAL PRIMARY KEY,
-      follower_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      following_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-  ` : `
-    CREATE TABLE IF NOT EXISTS follows (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      follower_id INTEGER NOT NULL,
-      following_id INTEGER NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (follower_id) REFERENCES users (id) ON DELETE CASCADE,
-      FOREIGN KEY (following_id) REFERENCES users (id) ON DELETE CASCADE
-    );
-  `;
+    const notificationsSql = isPostgres ? `
+      CREATE TABLE IF NOT EXISTS notifications (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        actor_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        type VARCHAR(50) NOT NULL,
+        post_id INTEGER,
+        is_read INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    ` : `
+      CREATE TABLE IF NOT EXISTS notifications (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        actor_id INTEGER NOT NULL,
+        type TEXT NOT NULL,
+        post_id INTEGER,
+        is_read INTEGER DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+        FOREIGN KEY (actor_id) REFERENCES users (id) ON DELETE CASCADE
+      );
+    `;
 
-  try {
-    await db.run(usersSql);
-    await db.run(postsSql);
-    await db.run(likesSql);
-    await db.run(commentsSql);
-    await db.run(commentReactionsSql);
-    await db.run(notificationsSql);
-    await db.run(followsSql);
-    console.log('Tabelas verificadas/criadas no banco de dados com sucesso.');
-  } catch (err) {
-    console.error('Erro ao inicializar tabelas:', err);
-  }
+    const followsSql = isPostgres ? `
+      CREATE TABLE IF NOT EXISTS follows (
+        id SERIAL PRIMARY KEY,
+        follower_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        following_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    ` : `
+      CREATE TABLE IF NOT EXISTS follows (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        follower_id INTEGER NOT NULL,
+        following_id INTEGER NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (follower_id) REFERENCES users (id) ON DELETE CASCADE,
+        FOREIGN KEY (following_id) REFERENCES users (id) ON DELETE CASCADE
+      );
+    `;
+
+    try {
+      await db.run(usersSql);
+      await db.run(postsSql);
+      await db.run(likesSql);
+      await db.run(commentsSql);
+      await db.run(commentReactionsSql);
+      await db.run(notificationsSql);
+      await db.run(followsSql);
+      console.log('Tabelas verificadas/criadas no banco de dados com sucesso.');
+    } catch (err) {
+      console.error('Erro ao inicializar tabelas:', err);
+      throw err;
+    }
+  })();
+
+  return initPromise;
 }
 
-initTables();
+db.init = initTables;
+db.init();
 
 module.exports = db;

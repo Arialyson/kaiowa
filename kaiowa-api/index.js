@@ -12,6 +12,16 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
+// Middleware para garantir que o banco de dados esteja inicializado antes de processar qualquer requisição
+app.use(async (req, res, next) => {
+  try {
+    await db.init();
+    next();
+  } catch (err) {
+    res.status(500).json({ erro: 'Erro de conexão com o banco de dados.' });
+  }
+});
+
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
@@ -75,10 +85,11 @@ app.post('/users', async (req, res) => {
     await db.run(query, [username.trim(), email.trim(), password]);
     res.status(201).json({ mensagem: 'Usuário cadastrado com sucesso!' });
   } catch (err) {
-    if (err.message && (err.message.includes('UNIQUE') || err.message.includes('unique'))) {
+    console.error('Erro no cadastro:', err);
+    if (err.message && (err.message.includes('UNIQUE') || err.message.includes('unique') || err.code === '23505')) {
       return res.status(400).json({ erro: 'Nome de usuário ou e-mail já cadastrado.' });
     }
-    res.status(500).json({ erro: 'Erro ao cadastrar usuário.' });
+    res.status(500).json({ erro: `Erro ao cadastrar: ${err.message}` });
   }
 });
 
@@ -310,7 +321,6 @@ app.get('/posts/:id/comments', async (req, res) => {
   try {
     const comments = await db.query(query, [req.params.id]);
     
-    // Busca reações para cada comentário
     const formatted = await Promise.all((comments || []).map(async (comment) => {
       const reactions = await db.query(
         'SELECT emoji, COUNT(*) as count FROM comment_reactions WHERE comment_id = ? GROUP BY emoji',
