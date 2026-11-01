@@ -21,7 +21,7 @@ html, body {
   overflow-x: hidden;
 }
 
-/* Evita o zoom automático nos navegadores móveis ao focar no campo */
+/* Evita zoom automático no mobile ao focar nos campos */
 input, textarea, select {
   font-size: 16px !important;
 }
@@ -43,7 +43,6 @@ input, textarea, select {
   min-height: 100vh;
   box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
   position: relative;
-  /* Compensação de espaço para a barra fixa do topo */
   padding-top: 66px; 
 }
 
@@ -697,6 +696,7 @@ input, textarea, select {
   cursor: pointer;
 }
 
+/* BARRA DE BOTÕES DA PUBLICAÇÃO (AJSUTADA PARA UMA LINHA SÓ) */
 .post-form-footer {
   display: flex;
   justify-content: space-between;
@@ -704,29 +704,31 @@ input, textarea, select {
   margin-top: 12px;
   padding-top: 12px;
   border-top: 1px solid #eef0e8;
-  flex-wrap: wrap;
-  gap: 10px;
+  flex-wrap: nowrap; /* Força ficar na mesma linha */
+  gap: 6px;
+  width: 100%;
 }
 
 .post-form-actions {
   display: flex;
-  gap: 10px;
+  gap: 6px;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 .btn-attach-image {
   background-color: #f0f4e8;
   border: 1px solid #d8e2c8;
   color: #2c3e50;
-  padding: 8px 14px;
+  padding: 7px 10px;
   border-radius: 20px;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   font-weight: 500;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
+  white-space: nowrap;
 }
 
 .emoji-picker-container {
@@ -743,12 +745,13 @@ input, textarea, select {
 .post-footer-right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 6px;
   margin-left: auto;
+  white-space: nowrap;
 }
 
 .char-counter {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: #757575;
 }
 
@@ -760,14 +763,15 @@ input, textarea, select {
   background-color: #8bc34a;
   color: #1b3b22;
   border: none;
-  padding: 8px 22px;
+  padding: 7px 16px;
   border-radius: 20px;
   font-weight: 700;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
+  white-space: nowrap;
 }
 
 .btn-publish-pill:hover:not(:disabled) {
@@ -1031,16 +1035,17 @@ input, textarea, select {
   }
 
   .post-create-box {
-    padding: 14px;
+    padding: 12px 10px;
   }
 
-  .post-form-footer {
-    flex-direction: row;
-    justify-content: space-between;
+  .btn-attach-image {
+    padding: 6px 8px;
+    font-size: 0.75rem;
   }
 
-  .post-footer-right {
-    margin-left: 0;
+  .btn-publish-pill {
+    padding: 6px 12px;
+    font-size: 0.75rem;
   }
 }
 
