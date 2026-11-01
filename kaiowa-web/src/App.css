@@ -869,13 +869,6 @@ body {
   font-weight: bold;
 }
 
-.action-reposted {
-  background-color: #e1f5fe !important;
-  color: #0288d1 !important;
-  border-color: #81d4fa !important;
-  font-weight: bold;
-}
-
 .post-actions svg {
   width: 16px;
   height: 16px;

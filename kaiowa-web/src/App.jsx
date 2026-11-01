@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import heic2any from 'heic2any';
 import EmojiPicker from 'emoji-picker-react';
 import './App.css';
 
-const API_URL = 'http://localhost:3000';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 const DEFAULT_AVATAR = 'https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png';
 
 const MAX_CHAR_COUNT = 280;
@@ -86,15 +86,6 @@ const IconHeart = () => (
   </svg>
 );
 
-const IconRepeat = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="17 1 21 5 17 9" />
-    <path d="M3 11V9a4 4 0 0 1 4-4h14" />
-    <polyline points="7 23 3 19 7 15" />
-    <path d="M21 13v2a4 4 0 0 1-4 4H3" />
-  </svg>
-);
-
 const IconMessage = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
@@ -162,7 +153,7 @@ function App() {
 
   const [comentarioAberto, setComentarioAberto] = useState(null);
   const [comentarios, setComentarios] = useState({});
-  const [novoComentario, setNovoComentario] = useState('');
+  const [novoComentario, setNovoComentario] = useState({});
 
   useEffect(() => {
     if (token) {
@@ -422,22 +413,14 @@ function App() {
   };
 
   const handleCurtir = async (postId) => {
-    if (!token) return alert('Faça login!');
+    if (!token) return alert('Faça login para curtir!');
     try {
-      await axios.post(`${API_URL}/likes`, { post_id: postId }, { headers: { Authorization: `Bearer ${token}` } });
+      const headers = { Authorization: `Bearer ${token}` };
+      await axios.post(`${API_URL}/likes`, { post_id: Number(postId) }, { headers });
       carregarPosts();
     } catch (err) {
-      alert('Erro ao curtir.');
-    }
-  };
-
-  const handleRepostar = async (postId) => {
-    if (!token) return alert('Faça login!');
-    try {
-      await axios.post(`${API_URL}/reposts`, { post_id: postId }, { headers: { Authorization: `Bearer ${token}` } });
-      carregarPosts();
-    } catch (err) {
-      alert('Erro ao repostar.');
+      console.error('Erro ao curtir post:', err);
+      alert(err.response?.data?.erro || 'Erro ao processar a curtida.');
     }
   };
 
@@ -453,15 +436,16 @@ function App() {
 
   const handleEnviarComentario = async (postId) => {
     if (!token) return alert('Faça login!');
-    if (!novoComentario.trim()) return;
+    const textoComentario = novoComentario[postId] || '';
+    if (!textoComentario.trim()) return;
 
     try {
       await axios.post(
         `${API_URL}/posts/${postId}/comments`,
-        { content: novoComentario },
+        { content: textoComentario },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      setNovoComentario('');
+      setNovoComentario((prev) => ({ ...prev, [postId]: '' }));
       const res = await axios.get(`${API_URL}/posts/${postId}/comments`);
       setComentarios((prev) => ({ ...prev, [postId]: res.data }));
       carregarPosts();
@@ -821,9 +805,6 @@ function App() {
                     <button onClick={() => handleCurtir(post.id)} className={post.user_liked ? 'action-liked' : ''}>
                       <IconHeart /> {post.likes_count || 0}
                     </button>
-                    <button onClick={() => handleRepostar(post.id)} className={post.user_reposted ? 'action-reposted' : ''}>
-                      <IconRepeat /> {post.reposts_count || 0}
-                    </button>
                     <button onClick={() => toggleComentarios(post.id)}>
                       <IconMessage /> {post.comments_count || 0}
                     </button>
@@ -869,8 +850,8 @@ function App() {
                           <input
                             type="text"
                             placeholder="Escreva um comentário e pressione Enter..."
-                            value={novoComentario}
-                            onChange={(e) => setNovoComentario(e.target.value)}
+                            value={novoComentario[post.id] || ''}
+                            onChange={(e) => setNovoComentario({ ...novoComentario, [post.id]: e.target.value })}
                             onKeyDown={(e) => handleKeyDownComentario(e, post.id)}
                           />
                           <button onClick={() => handleEnviarComentario(post.id)}>Responder</button>

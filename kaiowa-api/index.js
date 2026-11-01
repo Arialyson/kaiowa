@@ -45,9 +45,8 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
-// Função auxiliar para criar notificação
 const criarNotificacao = (userId, actorId, type, postId = null) => {
-  if (userId === actorId) return; // Não notifica a si mesmo
+  if (userId === actorId) return;
   const query = 'INSERT INTO notifications (user_id, actor_id, type, post_id) VALUES (?, ?, ?, ?)';
   db.run(query, [userId, actorId, type, postId]);
 };
@@ -96,7 +95,8 @@ app.post('/login', (req, res) => {
 app.post('/users/avatar', authenticateToken, upload.single('avatar'), (req, res) => {
   if (!req.file) return res.status(400).json({ erro: 'Nenhuma imagem enviada.' });
 
-  const avatarUrl = `http://localhost:3000/uploads/${req.file.filename}`;
+  const hostUrl = `${req.protocol}://${req.get('host')}`;
+  const avatarUrl = `${hostUrl}/uploads/${req.file.filename}`;
   db.run('UPDATE users SET avatar = ? WHERE id = ?', [avatarUrl, req.user.id], (err) => {
     if (err) return res.status(500).json({ erro: 'Erro ao atualizar avatar.' });
     res.json({ avatar: avatarUrl });
@@ -171,7 +171,7 @@ app.delete('/users/me', authenticateToken, (req, res) => {
   });
 });
 
-// ROTAS DE NOTIFICAÇÕES (Limitado às últimas 10)
+// ROTAS DE NOTIFICAÇÕES
 app.get('/notifications', authenticateToken, (req, res) => {
   const query = `
     SELECT notifications.*, users.username AS actor_username, users.avatar AS actor_avatar
@@ -200,7 +200,8 @@ app.post('/posts', authenticateToken, (req, res) => {
     if (err) return res.status(400).json({ erro: `Erro no upload: ${err.message}` });
 
     const content = req.body.content || '';
-    const imageUrl = req.file ? `http://localhost:3000/uploads/${req.file.filename}` : null;
+    const hostUrl = `${req.protocol}://${req.get('host')}`;
+    const imageUrl = req.file ? `${hostUrl}/uploads/${req.file.filename}` : null;
 
     if (!content.trim() && !imageUrl) {
       return res.status(400).json({ erro: 'O post precisa de texto ou imagem.' });
@@ -219,15 +220,14 @@ app.get('/posts', authenticateToken, (req, res) => {
     SELECT posts.*, users.username, users.avatar,
     (SELECT COUNT(*) FROM likes WHERE likes.post_id = posts.id) AS likes_count,
     (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) AS comments_count,
-    (SELECT COUNT(*) FROM reposts WHERE reposts.post_id = posts.id) AS reposts_count,
     EXISTS(SELECT 1 FROM likes WHERE likes.post_id = posts.id AND likes.user_id = ?) AS user_liked,
-    EXISTS(SELECT 1 FROM reposts WHERE reposts.post_id = posts.id AND reposts.user_id = ?) AS user_reposted,
     EXISTS(SELECT 1 FROM follows WHERE follower_id = ? AND following_id = posts.user_id) AS is_following
     FROM posts
     JOIN users ON posts.user_id = users.id
     ORDER BY posts.created_at DESC
   `;
-  db.all(query, [req.user.id, req.user.id, req.user.id], (err, rows) => {
+
+  db.all(query, [req.user.id, req.user.id], (err, rows) => {
     if (err) return res.status(500).json({ erro: 'Erro ao carregar os posts.' });
     res.json({ posts: rows || [] });
   });
@@ -240,29 +240,31 @@ app.delete('/posts/:id', authenticateToken, (req, res) => {
   });
 });
 
+// ROTA DE CURTIDAS
 app.post('/likes', authenticateToken, (req, res) => {
-  const { post_id } = req.body;
-  db.get('SELECT * FROM likes WHERE user_id = ? AND post_id = ?', [req.user.id, post_id], (err, row) => {
+  const postId = Number(req.body.post_id || req.body.postId);
+
+  if (!postId || isNaN(postId)) {
+    return res.status(400).json({ erro: 'ID do post é inválido.' });
+  }
+
+  db.get('SELECT * FROM likes WHERE user_id = ? AND post_id = ?', [req.user.id, postId], (err, row) => {
+    if (err) return res.status(500).json({ erro: 'Erro ao consultar curtidas.' });
+
     if (row) {
-      db.run('DELETE FROM likes WHERE user_id = ? AND post_id = ?', [req.user.id, post_id], () => res.json({ mensagem: 'Descurtido' }));
+      db.run('DELETE FROM likes WHERE user_id = ? AND post_id = ?', [req.user.id, postId], (delErr) => {
+        if (delErr) return res.status(500).json({ erro: 'Erro ao remover curtida.' });
+        res.json({ mensagem: 'Descurtido' });
+      });
     } else {
-      db.run('INSERT INTO likes (user_id, post_id) VALUES (?, ?)', [req.user.id, post_id], () => {
-        db.get('SELECT user_id FROM posts WHERE id = ?', [post_id], (pErr, post) => {
-          if (post) criarNotificacao(post.user_id, req.user.id, 'like', post_id);
+      db.run('INSERT INTO likes (user_id, post_id) VALUES (?, ?)', [req.user.id, postId], (insErr) => {
+        if (insErr) return res.status(500).json({ erro: 'Erro ao registrar curtida.' });
+
+        db.get('SELECT user_id FROM posts WHERE id = ?', [postId], (pErr, post) => {
+          if (post) criarNotificacao(post.user_id, req.user.id, 'like', postId);
         });
         res.json({ mensagem: 'Curtido' });
       });
-    }
-  });
-});
-
-app.post('/reposts', authenticateToken, (req, res) => {
-  const { post_id } = req.body;
-  db.get('SELECT * FROM reposts WHERE user_id = ? AND post_id = ?', [req.user.id, post_id], (err, row) => {
-    if (row) {
-      db.run('DELETE FROM reposts WHERE user_id = ? AND post_id = ?', [req.user.id, post_id], () => res.json({ mensagem: 'Repost removido' }));
-    } else {
-      db.run('INSERT INTO reposts (user_id, post_id) VALUES (?, ?)', [req.user.id, post_id], () => res.json({ mensagem: 'Repostado' }));
     }
   });
 });
