@@ -34,7 +34,6 @@ input, textarea, select {
   justify-content: center;
   width: 100%;
   max-width: 100vw;
-  overflow-x: hidden;
 }
 
 .kaiowa-container {
@@ -44,10 +43,11 @@ input, textarea, select {
   min-height: 100vh;
   box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
   position: relative;
-  overflow-x: hidden;
+  /* Compensação de espaço para a barra fixa do topo */
+  padding-top: 66px; 
 }
 
-/* HEADER DA APLICAÇÃO */
+/* HEADER DA APLICAÇÃO (BARRA FIXA NO TOPO) */
 .kaiowa-header {
   display: flex;
   justify-content: space-between;
@@ -55,9 +55,14 @@ input, textarea, select {
   padding: 14px 20px;
   background-color: #1b3b22;
   color: #ffffff;
-  position: sticky;
+  position: fixed;
   top: 0;
-  z-index: 90;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 680px;
+  z-index: 999;
+  height: 66px;
 }
 
 .logo-area {
@@ -1014,10 +1019,15 @@ input, textarea, select {
 @media (max-width: 480px) {
   .kaiowa-header {
     padding: 10px 14px;
+    height: 58px;
+  }
+  
+  .kaiowa-container {
+    padding-top: 58px;
   }
   
   .user-name {
-    display: none; /* Oculta o nome no header mobile para poupar espaço */
+    display: none;
   }
 
   .post-create-box {
