@@ -12,7 +12,13 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
-app.use(cors());
+// Configuração do CORS aberta para permitir requisições da Vercel
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
@@ -97,7 +103,7 @@ app.post('/users/avatar', authenticateToken, upload.single('avatar'), (req, res)
 
   const hostUrl = `${req.protocol}://${req.get('host')}`;
   const avatarUrl = `${hostUrl}/uploads/${req.file.filename}`;
-  db.run('UPDATE users SET avatar = ? WHERE id = ?', [avatarUrl, req.user.id], (err) => {
+  db.run('UPDATE users SET avatar = ? WHERE id = ?', [req.user.id], (err) => {
     if (err) return res.status(500).json({ erro: 'Erro ao atualizar avatar.' });
     res.json({ avatar: avatarUrl });
   });
