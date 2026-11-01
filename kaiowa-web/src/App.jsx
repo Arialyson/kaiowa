@@ -574,45 +574,48 @@ function App() {
               </div>
 
               {/* Configurações e Logout */}
-              <button onClick={() => setMostrarConfig(!mostrarConfig)} className="btn-icon" title="Configurações">⚙️</button>
+              <button onClick={() => setMostrarConfig(true)} className="btn-icon" title="Configurações">⚙️</button>
               <button onClick={handleLogout} className="btn-logout">Sair</button>
             </div>
           )}
         </header>
 
+        {/* MODAL SUSPENSO DESTACADO DE CONFIGURAÇÕES */}
         {mostrarConfig && (
-          <div className="settings-modal">
-            <div className="settings-header">
-              <h3>⚙️ Configurações da Conta</h3>
-              <button onClick={() => setMostrarConfig(false)} className="btn-close">✕</button>
-            </div>
+          <div className="modal-overlay" onClick={() => setMostrarConfig(false)}>
+            <div className="settings-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="settings-header">
+                <h3>⚙️ Configurações da Conta</h3>
+                <button onClick={() => setMostrarConfig(false)} className="btn-close">✕</button>
+              </div>
 
-            {msgConfig && <div className="info-message">{msgConfig}</div>}
+              {msgConfig && <div className="info-message">{msgConfig}</div>}
 
-            <form onSubmit={handleAlterarSenha} className="settings-form">
-              <h4>Trocar Senha</h4>
-              <input
-                type="password"
-                placeholder="Senha Atual"
-                value={senhaAtual}
-                onChange={(e) => setSenhaAtual(e.target.value)}
-                required
-              />
-              <input
-                type="password"
-                placeholder="Nova Senha"
-                value={novaSenha}
-                onChange={(e) => setNovaSenha(e.target.value)}
-                required
-              />
-              <button type="submit" className="btn-primary">Atualizar Senha</button>
-            </form>
+              <form onSubmit={handleAlterarSenha} className="settings-form">
+                <h4>Trocar Senha</h4>
+                <input
+                  type="password"
+                  placeholder="Senha Atual"
+                  value={senhaAtual}
+                  onChange={(e) => setSenhaAtual(e.target.value)}
+                  required
+                />
+                <input
+                  type="password"
+                  placeholder="Nova Senha"
+                  value={novaSenha}
+                  onChange={(e) => setNovaSenha(e.target.value)}
+                  required
+                />
+                <button type="submit" className="btn-primary">Atualizar Senha</button>
+              </form>
 
-            <div className="danger-zone">
-              <h4>Zona de Perigo</h4>
-              <button onClick={handleExcluirConta} className="btn-delete-account">
-                🗑️ Excluir Minha Conta
-              </button>
+              <div className="danger-zone">
+                <h4>Zona de Perigo</h4>
+                <button onClick={handleExcluirConta} className="btn-delete-account">
+                  🗑️ Excluir Minha Conta
+                </button>
+              </div>
             </div>
           </div>
         )}
