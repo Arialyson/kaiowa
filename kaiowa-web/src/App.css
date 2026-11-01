@@ -6,10 +6,24 @@
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
 }
 
-body {
+html, body {
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
   background-color: #ecece4;
   color: #2c3e50;
   min-height: 100vh;
+}
+
+#root {
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+/* Evita o zoom automático nos navegadores móveis ao focar no campo */
+input, textarea, select {
+  font-size: 16px !important;
 }
 
 /* ENVOLTÓRIO PRINCIPAL */
@@ -18,6 +32,9 @@ body {
   background-color: #ecece4;
   display: flex;
   justify-content: center;
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
 }
 
 .kaiowa-container {
@@ -27,6 +44,7 @@ body {
   min-height: 100vh;
   box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
   position: relative;
+  overflow-x: hidden;
 }
 
 /* HEADER DA APLICAÇÃO */
@@ -178,6 +196,7 @@ body {
   top: 48px;
   right: 0;
   width: 320px;
+  max-width: 90vw;
   background-color: #ffffff;
   border: 1px solid #dcdcd0;
   border-radius: 12px;
@@ -632,6 +651,7 @@ body {
   height: 42px;
   border-radius: 50%;
   object-fit: cover;
+  flex-shrink: 0;
 }
 
 .post-input-wrapper textarea {
@@ -679,12 +699,15 @@ body {
   margin-top: 12px;
   padding-top: 12px;
   border-top: 1px solid #eef0e8;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .post-form-actions {
   display: flex;
   gap: 10px;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .btn-attach-image {
@@ -716,6 +739,7 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
+  margin-left: auto;
 }
 
 .char-counter {
@@ -793,6 +817,7 @@ body {
   height: 40px;
   border-radius: 50%;
   object-fit: cover;
+  flex-shrink: 0;
 }
 
 .post-user-info {
@@ -820,6 +845,7 @@ body {
   color: #2c3e50;
   margin-bottom: 10px;
   line-height: 1.4;
+  word-break: break-word;
 }
 
 .post-media {
@@ -840,6 +866,7 @@ body {
   gap: 16px;
   padding-top: 10px;
   border-top: 1px solid #f0f0e8;
+  flex-wrap: wrap;
 }
 
 .post-actions button {
@@ -908,6 +935,7 @@ body {
   height: 28px;
   border-radius: 50%;
   object-fit: cover;
+  flex-shrink: 0;
 }
 
 .comment-body {
@@ -923,6 +951,7 @@ body {
   color: #2c3e50;
   margin-top: 2px;
   margin-bottom: 6px;
+  word-break: break-word;
 }
 
 .comment-reactions-bar {
@@ -979,6 +1008,30 @@ body {
   font-size: 0.8rem;
   font-weight: 700;
   cursor: pointer;
+}
+
+/* REGRAS ESPECÍFICAS PARA ECRÃS DE TELEMÓVEL (MEDIA QUERY) */
+@media (max-width: 480px) {
+  .kaiowa-header {
+    padding: 10px 14px;
+  }
+  
+  .user-name {
+    display: none; /* Oculta o nome no header mobile para poupar espaço */
+  }
+
+  .post-create-box {
+    padding: 14px;
+  }
+
+  .post-form-footer {
+    flex-direction: row;
+    justify-content: space-between;
+  }
+
+  .post-footer-right {
+    margin-left: 0;
+  }
 }
 
 /* ANIMAÇÕES */
