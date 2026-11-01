@@ -45,6 +45,13 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
+// Função auxiliar para criar notificação
+const criarNotificacao = (userId, actorId, type, postId = null) => {
+  if (userId === actorId) return; // Não notifica a si mesmo
+  const query = 'INSERT INTO notifications (user_id, actor_id, type, post_id) VALUES (?, ?, ?, ?)';
+  db.run(query, [userId, actorId, type, postId]);
+};
+
 // ROTAS DE USUÁRIOS
 app.post('/users', (req, res) => {
   const { username, email, password } = req.body;
@@ -138,6 +145,7 @@ app.post('/users/:id/follow', authenticateToken, (req, res) => {
       });
     } else {
       db.run('INSERT INTO follows (follower_id, following_id) VALUES (?, ?)', [req.user.id, targetId], () => {
+        criarNotificacao(targetId, req.user.id, 'follow');
         res.json({ mensagem: 'Seguindo com sucesso.' });
       });
     }
@@ -160,6 +168,29 @@ app.delete('/users/me', authenticateToken, (req, res) => {
   db.run('DELETE FROM users WHERE id = ?', [req.user.id], (err) => {
     if (err) return res.status(500).json({ erro: 'Erro ao excluir conta.' });
     res.json({ mensagem: 'Conta excluída.' });
+  });
+});
+
+// ROTAS DE NOTIFICAÇÕES (Limitado às últimas 10)
+app.get('/notifications', authenticateToken, (req, res) => {
+  const query = `
+    SELECT notifications.*, users.username AS actor_username, users.avatar AS actor_avatar
+    FROM notifications
+    JOIN users ON notifications.actor_id = users.id
+    WHERE notifications.user_id = ?
+    ORDER BY notifications.created_at DESC
+    LIMIT 10
+  `;
+  db.all(query, [req.user.id], (err, rows) => {
+    if (err) return res.status(500).json({ erro: 'Erro ao carregar notificações.' });
+    res.json(rows || []);
+  });
+});
+
+app.put('/notifications/read', authenticateToken, (req, res) => {
+  db.run('UPDATE notifications SET is_read = 1 WHERE user_id = ?', [req.user.id], (err) => {
+    if (err) return res.status(500).json({ erro: 'Erro ao atualizar notificações.' });
+    res.json({ mensagem: 'Notificações marcadas como lidas.' });
   });
 });
 
@@ -189,12 +220,14 @@ app.get('/posts', authenticateToken, (req, res) => {
     (SELECT COUNT(*) FROM likes WHERE likes.post_id = posts.id) AS likes_count,
     (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) AS comments_count,
     (SELECT COUNT(*) FROM reposts WHERE reposts.post_id = posts.id) AS reposts_count,
+    EXISTS(SELECT 1 FROM likes WHERE likes.post_id = posts.id AND likes.user_id = ?) AS user_liked,
+    EXISTS(SELECT 1 FROM reposts WHERE reposts.post_id = posts.id AND reposts.user_id = ?) AS user_reposted,
     EXISTS(SELECT 1 FROM follows WHERE follower_id = ? AND following_id = posts.user_id) AS is_following
     FROM posts
     JOIN users ON posts.user_id = users.id
     ORDER BY posts.created_at DESC
   `;
-  db.all(query, [req.user.id], (err, rows) => {
+  db.all(query, [req.user.id, req.user.id, req.user.id], (err, rows) => {
     if (err) return res.status(500).json({ erro: 'Erro ao carregar os posts.' });
     res.json({ posts: rows || [] });
   });
@@ -213,7 +246,12 @@ app.post('/likes', authenticateToken, (req, res) => {
     if (row) {
       db.run('DELETE FROM likes WHERE user_id = ? AND post_id = ?', [req.user.id, post_id], () => res.json({ mensagem: 'Descurtido' }));
     } else {
-      db.run('INSERT INTO likes (user_id, post_id) VALUES (?, ?)', [req.user.id, post_id], () => res.json({ mensagem: 'Curtido' }));
+      db.run('INSERT INTO likes (user_id, post_id) VALUES (?, ?)', [req.user.id, post_id], () => {
+        db.get('SELECT user_id FROM posts WHERE id = ?', [post_id], (pErr, post) => {
+          if (post) criarNotificacao(post.user_id, req.user.id, 'like', post_id);
+        });
+        res.json({ mensagem: 'Curtido' });
+      });
     }
   });
 });
@@ -231,7 +269,9 @@ app.post('/reposts', authenticateToken, (req, res) => {
 
 app.get('/posts/:id/comments', (req, res) => {
   const query = `
-    SELECT comments.*, users.username, users.avatar 
+    SELECT comments.*, users.username, users.avatar,
+    (SELECT JSON_GROUP_ARRAY(JSON_OBJECT('emoji', emoji, 'count', cnt))
+     FROM (SELECT emoji, COUNT(*) as cnt FROM comment_reactions WHERE comment_id = comments.id GROUP BY emoji)) AS reactions
     FROM comments 
     JOIN users ON comments.user_id = users.id 
     WHERE comments.post_id = ? 
@@ -239,7 +279,11 @@ app.get('/posts/:id/comments', (req, res) => {
   `;
   db.all(query, [req.params.id], (err, rows) => {
     if (err) return res.status(500).json({ erro: 'Erro ao carregar comentários.' });
-    res.json(rows || []);
+    const formatted = (rows || []).map((row) => ({
+      ...row,
+      reactions: row.reactions ? JSON.parse(row.reactions) : []
+    }));
+    res.json(formatted);
   });
 });
 
@@ -249,7 +293,23 @@ app.post('/posts/:id/comments', authenticateToken, (req, res) => {
 
   db.run('INSERT INTO comments (user_id, post_id, content) VALUES (?, ?, ?)', [req.user.id, req.params.id, content.trim()], function (err) {
     if (err) return res.status(500).json({ erro: 'Erro ao comentar.' });
+    db.get('SELECT user_id FROM posts WHERE id = ?', [req.params.id], (pErr, post) => {
+      if (post) criarNotificacao(post.user_id, req.user.id, 'comment', req.params.id);
+    });
     res.status(201).json({ mensagem: 'Comentário adicionado!' });
+  });
+});
+
+app.post('/comments/:id/react', authenticateToken, (req, res) => {
+  const { emoji } = req.body;
+  const commentId = req.params.id;
+
+  db.get('SELECT * FROM comment_reactions WHERE user_id = ? AND comment_id = ? AND emoji = ?', [req.user.id, commentId, emoji], (err, row) => {
+    if (row) {
+      db.run('DELETE FROM comment_reactions WHERE id = ?', [row.id], () => res.json({ mensagem: 'Reação removida' }));
+    } else {
+      db.run('INSERT INTO comment_reactions (user_id, comment_id, emoji) VALUES (?, ?, ?)', [req.user.id, commentId, emoji], () => res.json({ mensagem: 'Reagido' }));
+    }
   });
 });
 

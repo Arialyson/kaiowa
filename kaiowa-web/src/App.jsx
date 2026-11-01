@@ -137,9 +137,6 @@ function App() {
 
   const [userStats, setUserStats] = useState({ followers_count: 0, following_count: 0 });
 
-  const [modalFollowType, setModalFollowType] = useState(null);
-  const [listaUsuariosModal, setListaUsuariosModal] = useState([]);
-
   const [termoBusca, setTermoBusca] = useState('');
   const [resultadosBusca, setResultadosBusca] = useState([]);
 
@@ -162,15 +159,11 @@ function App() {
 
   const [notificacoes, setNotificacoes] = useState([]);
   const [mostrarNotificacoes, setMostrarNotificacoes] = useState(false);
-  const [balancarSino, setBalancarSino] = useState(false);
 
   const [comentarioAberto, setComentarioAberto] = useState(null);
   const [comentarios, setComentarios] = useState({});
   const [novoComentario, setNovoComentario] = useState('');
 
-  const prevUnreadCountRef = useRef(0);
-
-  // Polling automático a cada 3 segundos
   useEffect(() => {
     if (token) {
       carregarPosts();
@@ -207,38 +200,25 @@ function App() {
     try {
       const headers = { Authorization: `Bearer ${token}` };
       const res = await axios.get(`${API_URL}/notifications`, { headers });
-      const lista = res.data || [];
-      
-      const unreadCount = lista.filter((n) => n.is_read === 0).length;
-
-      if (unreadCount > prevUnreadCountRef.current && unreadCount > 0) {
-        setBalancarSino(true);
-        setTimeout(() => setBalancarSino(false), 1200);
-      }
-
-      prevUnreadCountRef.current = unreadCount;
-      setNotificacoes(lista);
+      setNotificacoes(res.data || []);
     } catch (err) {
       console.error('Erro ao carregar notificações:', err);
     }
   };
 
-  const marcarNotificacoesLidas = async () => {
-    try {
-      const headers = { Authorization: `Bearer ${token}` };
-      await axios.put(`${API_URL}/notifications/read`, {}, { headers });
-      setNotificacoes((prev) => prev.map((n) => ({ ...n, is_read: 1 })));
-      prevUnreadCountRef.current = 0;
-    } catch (err) {
-      console.error('Erro ao marcar notificações como lidas:', err);
-    }
-  };
+  const toggleNotificacoes = async () => {
+    const novoEstado = !mostrarNotificacoes;
+    setMostrarNotificacoes(novoEstado);
 
-  const togglePainelNotificacoes = () => {
-    if (!mostrarNotificacoes) {
-      marcarNotificacoesLidas();
+    if (novoEstado && temNotificacaoNova) {
+      try {
+        const headers = { Authorization: `Bearer ${token}` };
+        await axios.put(`${API_URL}/notifications/read`, {}, { headers });
+        setNotificacoes((prev) => prev.map((n) => ({ ...n, is_read: 1 })));
+      } catch (err) {
+        console.error('Erro ao marcar notificações como lidas:', err);
+      }
     }
-    setMostrarNotificacoes(!mostrarNotificacoes);
   };
 
   const carregarEstatisticas = async (userId) => {
@@ -308,7 +288,6 @@ function App() {
     setMostrarNotificacoes(false);
     setResultadosBusca([]);
     setTermoBusca('');
-    setModalFollowType(null);
     setPosts([]);
     setNotificacoes([]);
     localStorage.clear();
@@ -483,10 +462,22 @@ function App() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setNovoComentario('');
-      toggleComentarios(postId);
+      const res = await axios.get(`${API_URL}/posts/${postId}/comments`);
+      setComentarios((prev) => ({ ...prev, [postId]: res.data }));
       carregarPosts();
     } catch (err) {
       alert('Erro ao enviar comentário.');
+    }
+  };
+
+  const handleReagirComentario = async (commentId, postId, emoji) => {
+    if (!token) return alert('Faça login!');
+    try {
+      await axios.post(`${API_URL}/comments/${commentId}/react`, { emoji }, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await axios.get(`${API_URL}/posts/${postId}/comments`);
+      setComentarios((prev) => ({ ...prev, [postId]: res.data }));
+    } catch (err) {
+      console.error('Erro ao reagir ao comentário:', err);
     }
   };
 
@@ -508,7 +499,7 @@ function App() {
   };
 
   const charsRestantes = MAX_CHAR_COUNT - novoPost.length;
-  const naoLidasCount = notificacoes.filter((n) => n.is_read === 0).length;
+  const temNotificacaoNova = notificacoes.some((n) => n.is_read === 0);
 
   return (
     <div className="kaiowa-app-wrapper">
@@ -519,7 +510,6 @@ function App() {
           </div>
           {usuario && (
             <div className="user-profile-bar">
-              {/* Foto de perfil */}
               <label htmlFor="avatar-upload" className="avatar-label" title="Alterar foto de perfil">
                 <img src={usuario.avatar || DEFAULT_AVATAR} alt="Avatar" className="user-avatar-header" />
                 <span className="avatar-overlay">📷</span>
@@ -532,25 +522,24 @@ function App() {
                 style={{ display: 'none' }}
               />
 
-              {/* Nome de utilizador */}
               <span className="user-name">@{usuario.username}</span>
 
-              {/* Sino de Notificações com Alerta Visual e Animação */}
               <div className="notification-wrapper">
                 <button
-                  onClick={togglePainelNotificacoes}
-                  className={`btn-icon ${balancarSino ? 'bell-shake' : ''}`}
+                  onClick={toggleNotificacoes}
+                  className={`btn-icon ${temNotificacaoNova ? 'bell-glowing' : ''}`}
                   title="Notificações"
                 >
                   🔔
-                  {naoLidasCount > 0 && (
-                    <span className="notification-badge pulse-alert">{naoLidasCount}</span>
-                  )}
+                  {temNotificacaoNova && <span className="beacon-glow"></span>}
                 </button>
 
                 {mostrarNotificacoes && (
                   <div className="notifications-dropdown">
-                    <h4>🔔 Notificações</h4>
+                    <div className="notifications-header">
+                      <h4>🔔 Notificações</h4>
+                    </div>
+
                     {notificacoes.length === 0 ? (
                       <p className="no-notifications">Sem notificações recentes.</p>
                     ) : (
@@ -573,14 +562,12 @@ function App() {
                 )}
               </div>
 
-              {/* Configurações e Logout */}
               <button onClick={() => setMostrarConfig(true)} className="btn-icon" title="Configurações">⚙️</button>
               <button onClick={handleLogout} className="btn-logout">Sair</button>
             </div>
           )}
         </header>
 
-        {/* MODAL SUSPENSO DESTACADO DE CONFIGURAÇÕES */}
         {mostrarConfig && (
           <div className="modal-overlay" onClick={() => setMostrarConfig(false)}>
             <div className="settings-modal" onClick={(e) => e.stopPropagation()}>
@@ -831,10 +818,10 @@ function App() {
                   )}
 
                   <div className="post-actions">
-                    <button onClick={() => handleCurtir(post.id)}>
+                    <button onClick={() => handleCurtir(post.id)} className={post.user_liked ? 'action-liked' : ''}>
                       <IconHeart /> {post.likes_count || 0}
                     </button>
-                    <button onClick={() => handleRepostar(post.id)}>
+                    <button onClick={() => handleRepostar(post.id)} className={post.user_reposted ? 'action-reposted' : ''}>
                       <IconRepeat /> {post.reposts_count || 0}
                     </button>
                     <button onClick={() => toggleComentarios(post.id)}>
@@ -857,6 +844,22 @@ function App() {
                             <div className="comment-body">
                               <strong>@{c.username}</strong>
                               <p>{c.content}</p>
+
+                              <div className="comment-reactions-bar">
+                                {['👍', '❤️', '🔥', '😂'].map((emoji) => {
+                                  const rData = (c.reactions || []).find((r) => r.emoji === emoji);
+                                  const count = rData ? rData.count : 0;
+                                  return (
+                                    <button
+                                      key={emoji}
+                                      onClick={() => handleReagirComentario(c.id, post.id, emoji)}
+                                      className={`btn-reaction ${count > 0 ? 'active' : ''}`}
+                                    >
+                                      {emoji} {count > 0 && <span>{count}</span>}
+                                    </button>
+                                  );
+                                })}
+                              </div>
                             </div>
                           </div>
                         ))}
