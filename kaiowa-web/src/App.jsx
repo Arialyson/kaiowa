@@ -125,7 +125,14 @@ const IconTrash = () => (
 
 function App() {
   const [token, setToken] = useState(localStorage.getItem('token') || '');
-  const [usuario, setUsuario] = useState(JSON.parse(localStorage.getItem('usuario')) || null);
+  const [usuario, setUsuario] = useState(() => {
+    try {
+      const saved = localStorage.getItem('usuario');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
   const [isRegister, setIsRegister] = useState(false);
 
   const [userStats, setUserStats] = useState({ followers_count: 0, following_count: 0 });
@@ -188,9 +195,11 @@ function App() {
     try {
       const headers = { Authorization: `Bearer ${token}` };
       const res = await axios.get(`${API_URL}/posts`, { headers });
-      setPosts(res.data.posts);
+      setPosts(res.data.posts || []);
     } catch (err) {
-      console.error('Erro ao carregar posts:', err);
+      if (err.response?.status === 401 || err.response?.status === 403) {
+        handleLogout();
+      }
     }
   };
 
@@ -268,18 +277,6 @@ function App() {
       setResultadosBusca([]);
     } else {
       execBuscarUsuarios(val);
-    }
-  };
-
-  const handleAbrirModalFollowers = async (tipo) => {
-    if (!usuario) return;
-    setModalFollowType(tipo);
-    try {
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      const res = await axios.get(`${API_URL}/users/${usuario.id}/${tipo}`, { headers });
-      setListaUsuariosModal(res.data);
-    } catch (err) {
-      console.error('Erro ao buscar lista do modal:', err);
     }
   };
 
@@ -410,7 +407,6 @@ function App() {
       if (usuario && usuario.id) await carregarEstatisticas(usuario.id);
 
       if (termoBusca) execBuscarUsuarios(termoBusca);
-      if (modalFollowType) handleAbrirModalFollowers(modalFollowType);
     } catch (err) {
       alert(err.response?.data?.erro || 'Erro ao seguir.');
     }
@@ -440,6 +436,9 @@ function App() {
     } catch (err) {
       const erroServidor = err.response?.data?.erro || err.response?.data?.message || err.message;
       alert(`Erro ao publicar post: ${erroServidor}`);
+      if (err.response?.status === 401 || err.response?.status === 403) {
+        handleLogout();
+      }
     }
   };
 
@@ -618,47 +617,12 @@ function App() {
           </div>
         )}
 
-        {modalFollowType && (
-          <div className="settings-modal">
-            <div className="settings-header">
-              <h3>{modalFollowType === 'following' ? '👥 Pessoas que Você Segue' : '👥 Seus Seguidores'}</h3>
-              <button onClick={() => setModalFollowType(null)} className="btn-close">✕</button>
-            </div>
-            <div className="search-results-list">
-              {listaUsuariosModal.length === 0 ? (
-                <p style={{ color: '#a8e0a3', fontSize: '13px' }}>Nenhum utilizador encontrado.</p>
-              ) : (
-                listaUsuariosModal.map((u) => (
-                  <div key={u.id} className="search-user-item">
-                    <div className="user-info">
-                      <img src={u.avatar || DEFAULT_AVATAR} alt="Avatar" className="comment-avatar" />
-                      <strong>@{u.username}</strong>
-                    </div>
-                    {usuario && usuario.id !== u.id && (
-                      <button
-                        onClick={() => handleSeguir(u.id)}
-                        className={u.is_following ? 'btn-following' : 'btn-follow'}
-                      >
-                        {u.is_following ? 'Seguindo' : '+ Seguir'}
-                      </button>
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        )}
-
         <main className="kaiowa-main">
           {usuario && (
             <div className="profile-summary-card">
               <div className="stats-box">
-                <span onClick={() => handleAbrirModalFollowers('following')} className="clickable-stat">
-                  <strong>{userStats.following_count}</strong> Seguindo
-                </span>
-                <span onClick={() => handleAbrirModalFollowers('followers')} className="clickable-stat">
-                  <strong>{userStats.followers_count}</strong> Seguidores
-                </span>
+                <span><strong>{userStats.following_count}</strong> Seguindo</span>
+                <span><strong>{userStats.followers_count}</strong> Seguidores</span>
               </div>
 
               <form onSubmit={handleFormBusca} className="search-user-box">
@@ -668,9 +632,7 @@ function App() {
                   value={termoBusca}
                   onChange={handleInputBusca}
                 />
-                <button type="submit" className="btn-search">
-                  🔍 Buscar
-                </button>
+                <button type="submit" className="btn-search">🔍 Buscar</button>
               </form>
 
               {resultadosBusca.length > 0 && (
@@ -748,9 +710,7 @@ function App() {
               </div>
 
               <div className="auth-social-footer">
-                <p>
-                  {isRegister ? 'Já tem uma conta?' : 'Não tem uma conta?'}
-                </p>
+                <p>{isRegister ? 'Já tem uma conta?' : 'Não tem uma conta?'}</p>
                 <button
                   type="button"
                   className="btn-social-secondary"
@@ -767,7 +727,7 @@ function App() {
             <div className="post-create-box">
               <form onSubmit={handleCriarPost}>
                 <div className="post-input-wrapper">
-                  <img src={usuario.avatar || DEFAULT_AVATAR} alt="Avatar" className="user-avatar-post" />
+                  <img src={usuario?.avatar || DEFAULT_AVATAR} alt="Avatar" className="user-avatar-post" />
                   <textarea
                     placeholder="O que está acontecendo?"
                     value={novoPost}

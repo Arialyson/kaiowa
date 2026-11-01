@@ -48,6 +48,7 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
+<<<<<<< HEAD
 // Função para registar notificação na BD
 const criarNotificacao = (userId, actorId, type, postId = null) => {
   if (parseInt(userId) === parseInt(actorId)) return; // Não gera notificação para si próprio
@@ -73,12 +74,63 @@ app.post('/login', (req, res) => {
     const token = 'token-' + Date.now();
     db.run('UPDATE users SET token = ? WHERE id = ?', [token, user.id], () => {
       res.json({ token, user: { id: user.id, username: user.username, email: user.email, avatar: user.avatar } });
+=======
+// ==========================================
+// ROTAS DE AUTENTICAÇÃO E UTILIZADORES
+// ==========================================
+
+// Registo de Utilizador
+app.post('/users', (req, res) => {
+  const { username, email, password } = req.body;
+  if (!username || !email || !password) {
+    return res.status(400).json({ erro: 'Preencha todos os campos obrigatórios.' });
+  }
+
+  const query = 'INSERT INTO users (username, email, password) VALUES (?, ?, ?)';
+  db.run(query, [username.trim(), email.trim(), password], function (err) {
+    if (err) {
+      if (err.message.includes('UNIQUE')) {
+        return res.status(400).json({ erro: 'Nome de utilizador ou e-mail já registado.' });
+      }
+      return res.status(500).json({ erro: 'Erro ao registar utilizador.' });
+    }
+    res.status(201).json({ mensagem: 'Utilizador registado com sucesso!' });
+  });
+});
+
+// Login
+app.post('/login', (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ erro: 'Preencha e-mail e senha.' });
+  }
+
+  db.get('SELECT * FROM users WHERE email = ? AND password = ?', [email.trim(), password], (err, user) => {
+    if (err || !user) {
+      return res.status(400).json({ erro: 'E-mail ou senha incorretos.' });
+    }
+
+    const token = 'token-' + Date.now() + Math.round(Math.random() * 1000);
+    db.run('UPDATE users SET token = ? WHERE id = ?', [token, user.id], (upErr) => {
+      if (upErr) return res.status(500).json({ erro: 'Erro ao gerar sessão.' });
+
+      delete user.password;
+      user.token = token;
+      res.json({ token, user });
+>>>>>>> d5d7516 (fix: estabiliza autenticacao no login, sincroniza rotas do backend e schema do sqlite)
     });
   });
 });
 
+<<<<<<< HEAD
 app.post('/users/avatar', authenticateToken, upload.single('avatar'), (req, res) => {
   if (!req.file) return res.status(400).json({ erro: 'Nenhum ficheiro enviado.' });
+=======
+// Atualizar Avatar do Utilizador
+app.post('/users/avatar', authenticateToken, upload.single('avatar'), (req, res) => {
+  if (!req.file) return res.status(400).json({ erro: 'Nenhuma imagem enviada.' });
+
+>>>>>>> d5d7516 (fix: estabiliza autenticacao no login, sincroniza rotas do backend e schema do sqlite)
   const avatarUrl = `http://localhost:3000/uploads/${req.file.filename}`;
   db.run('UPDATE users SET avatar = ? WHERE id = ?', [avatarUrl, req.user.id], (err) => {
     if (err) return res.status(500).json({ erro: 'Erro ao atualizar avatar.' });
@@ -86,6 +138,27 @@ app.post('/users/avatar', authenticateToken, upload.single('avatar'), (req, res)
   });
 });
 
+<<<<<<< HEAD
+=======
+// Buscar Utilizadores
+app.get('/users/search', authenticateToken, (req, res) => {
+  const q = req.query.q || '';
+  const query = `
+    SELECT id, username, avatar,
+    (SELECT COUNT(*) FROM follows WHERE following_id = users.id) AS followers_count,
+    EXISTS(SELECT 1 FROM follows WHERE follower_id = ? AND following_id = users.id) AS is_following
+    FROM users
+    WHERE username LIKE ? AND id != ?
+    LIMIT 10
+  `;
+  db.all(query, [req.user.id, `%${q}%`, req.user.id], (err, rows) => {
+    if (err) return res.status(500).json({ erro: 'Erro ao pesquisar utilizadores.' });
+    res.json(rows);
+  });
+});
+
+// Estatísticas do Utilizador
+>>>>>>> d5d7516 (fix: estabiliza autenticacao no login, sincroniza rotas do backend e schema do sqlite)
 app.get('/users/:id/stats', (req, res) => {
   const userId = req.params.id;
   const query = `
@@ -94,6 +167,7 @@ app.get('/users/:id/stats', (req, res) => {
       (SELECT COUNT(*) FROM follows WHERE follower_id = ?) AS following_count
   `;
   db.get(query, [userId, userId], (err, row) => {
+<<<<<<< HEAD
     if (err) return res.status(500).json({ erro: 'Erro ao obter estatísticas.' });
     res.json(row);
   });
@@ -117,6 +191,20 @@ app.get('/users/search', authenticateToken, (req, res) => {
 
 app.post('/users/:id/follow', authenticateToken, (req, res) => {
   const targetId = parseInt(req.params.id);
+=======
+    if (err) return res.status(500).json({ erro: 'Erro ao carregar estatísticas.' });
+    res.json(row || { followers_count: 0, following_count: 0 });
+  });
+});
+
+// Seguir / Deixar de Seguir
+app.post('/users/:id/follow', authenticateToken, (req, res) => {
+  const targetId = parseInt(req.params.id);
+  if (targetId === req.user.id) {
+    return res.status(400).json({ erro: 'Não pode seguir-se a si mesmo.' });
+  }
+
+>>>>>>> d5d7516 (fix: estabiliza autenticacao no login, sincroniza rotas do backend e schema do sqlite)
   db.get('SELECT * FROM follows WHERE follower_id = ? AND following_id = ?', [req.user.id, targetId], (err, row) => {
     if (row) {
       db.run('DELETE FROM follows WHERE follower_id = ? AND following_id = ?', [req.user.id, targetId], () => {
@@ -124,13 +212,18 @@ app.post('/users/:id/follow', authenticateToken, (req, res) => {
       });
     } else {
       db.run('INSERT INTO follows (follower_id, following_id) VALUES (?, ?)', [req.user.id, targetId], () => {
+<<<<<<< HEAD
         criarNotificacao(targetId, req.user.id, 'follow');
         res.json({ mensagem: 'Começou a seguir.' });
+=======
+        res.json({ mensagem: 'A seguir com sucesso.' });
+>>>>>>> d5d7516 (fix: estabiliza autenticacao no login, sincroniza rotas do backend e schema do sqlite)
       });
     }
   });
 });
 
+<<<<<<< HEAD
 app.get('/users/:id/followers', authenticateToken, (req, res) => {
   const userId = req.params.id;
   const query = `
@@ -162,6 +255,34 @@ app.get('/users/:id/following', authenticateToken, (req, res) => {
 });
 
 // ROTAS DE POSTS, CURTIDAS E COMENTÁRIOS
+=======
+// Alterar Senha
+app.put('/users/password', authenticateToken, (req, res) => {
+  const { senhaAtual, novaSenha } = req.body;
+  if (req.user.password !== senhaAtual) {
+    return res.status(400).json({ erro: 'Senha atual incorreta.' });
+  }
+
+  db.run('UPDATE users SET password = ? WHERE id = ?', [novaSenha, req.user.id], (err) => {
+    if (err) return res.status(500).json({ erro: 'Erro ao alterar senha.' });
+    res.json({ mensagem: 'Senha alterada com sucesso!' });
+  });
+});
+
+// Excluir Conta
+app.delete('/users/me', authenticateToken, (req, res) => {
+  db.run('DELETE FROM users WHERE id = ?', [req.user.id], (err) => {
+    if (err) return res.status(500).json({ erro: 'Erro ao excluir conta.' });
+    res.json({ mensagem: 'Conta excluída.' });
+  });
+});
+
+// ==========================================
+// ROTAS DE POSTS, INTERAÇÕES E COMENTÁRIOS
+// ==========================================
+
+// Rota de criação de posts
+>>>>>>> d5d7516 (fix: estabiliza autenticacao no login, sincroniza rotas do backend e schema do sqlite)
 app.post('/posts', authenticateToken, (req, res) => {
   upload.single('image')(req, res, (err) => {
     if (err) return res.status(400).json({ erro: `Erro no upload: ${err.message}` });
@@ -187,14 +308,72 @@ app.get('/posts', authenticateToken, (req, res) => {
     (SELECT COUNT(*) FROM follows WHERE follower_id = ? AND following_id = posts.user_id) AS is_following,
     (SELECT COUNT(*) FROM likes WHERE likes.post_id = posts.id) AS likes_count,
     (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) AS comments_count,
-    (SELECT COUNT(*) FROM reposts WHERE reposts.post_id = posts.id) AS reposts_count
+    (SELECT COUNT(*) FROM reposts WHERE reposts.post_id = posts.id) AS reposts_count,
+    EXISTS(SELECT 1 FROM follows WHERE follower_id = ? AND following_id = posts.user_id) AS is_following
     FROM posts
     JOIN users ON posts.user_id = users.id
     ORDER BY posts.created_at DESC
   `;
   db.all(query, [req.user.id], (err, rows) => {
     if (err) return res.status(500).json({ erro: 'Erro ao carregar os posts.' });
-    res.json({ posts: rows });
+    res.json({ posts: rows || [] });
+  });
+});
+
+// Eliminar Post
+app.delete('/posts/:id', authenticateToken, (req, res) => {
+  db.run('DELETE FROM posts WHERE id = ? AND user_id = ?', [req.params.id, req.user.id], function (err) {
+    if (err || this.changes === 0) return res.status(400).json({ erro: 'Erro ao excluir post.' });
+    res.json({ mensagem: 'Post removido.' });
+  });
+});
+
+// Curtir Post
+app.post('/likes', authenticateToken, (req, res) => {
+  const { post_id } = req.body;
+  db.get('SELECT * FROM likes WHERE user_id = ? AND post_id = ?', [req.user.id, post_id], (err, row) => {
+    if (row) {
+      db.run('DELETE FROM likes WHERE user_id = ? AND post_id = ?', [req.user.id, post_id], () => res.json({ mensagem: 'Descurtido' }));
+    } else {
+      db.run('INSERT INTO likes (user_id, post_id) VALUES (?, ?)', [req.user.id, post_id], () => res.json({ mensagem: 'Curtido' }));
+    }
+  });
+});
+
+// Repostar Post
+app.post('/reposts', authenticateToken, (req, res) => {
+  const { post_id } = req.body;
+  db.get('SELECT * FROM reposts WHERE user_id = ? AND post_id = ?', [req.user.id, post_id], (err, row) => {
+    if (row) {
+      db.run('DELETE FROM reposts WHERE user_id = ? AND post_id = ?', [req.user.id, post_id], () => res.json({ mensagem: 'Repost removido' }));
+    } else {
+      db.run('INSERT INTO reposts (user_id, post_id) VALUES (?, ?)', [req.user.id, post_id], () => res.json({ mensagem: 'Repostado' }));
+    }
+  });
+});
+
+// Comentários
+app.get('/posts/:id/comments', (req, res) => {
+  const query = `
+    SELECT comments.*, users.username, users.avatar 
+    FROM comments 
+    JOIN users ON comments.user_id = users.id 
+    WHERE comments.post_id = ? 
+    ORDER BY comments.created_at ASC
+  `;
+  db.all(query, [req.params.id], (err, rows) => {
+    if (err) return res.status(500).json({ erro: 'Erro ao carregar comentários.' });
+    res.json(rows || []);
+  });
+});
+
+app.post('/posts/:id/comments', authenticateToken, (req, res) => {
+  const { content } = req.body;
+  if (!content || !content.trim()) return res.status(400).json({ erro: 'Comentário vazio.' });
+
+  db.run('INSERT INTO comments (user_id, post_id, content) VALUES (?, ?, ?)', [req.user.id, req.params.id, content.trim()], function (err) {
+    if (err) return res.status(500).json({ erro: 'Erro ao comentar.' });
+    res.status(201).json({ mensagem: 'Comentário adicionado!' });
   });
 });
 
