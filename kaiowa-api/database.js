@@ -8,18 +8,25 @@ let sqliteDb = null;
 const isPostgres = !!process.env.DATABASE_URL;
 
 if (isPostgres) {
-  // Configuração explícita para evitar falha com caracteres especiais (@) na senha
+  let connectionString = process.env.DATABASE_URL;
+
+  // Garante que a senha com @ (seja Arialyson@1987 ou Arialyson%401987) é tratada corretamente
+  if (connectionString.includes('%40')) {
+    connectionString = decodeURIComponent(connectionString);
+  }
+
   pool = new Pool({
-    user: 'postgres',
-    password: 'Arialyson@1987',
-    host: 'db.mzwgvawuvenrouggehpz.supabase.co',
-    port: 5432,
-    database: 'postgres',
+    connectionString: connectionString,
     ssl: {
       rejectUnauthorized: false
     }
   });
-  console.log('Conectado ao PostgreSQL (Supabase) via objeto com sucesso.');
+
+  pool.on('error', (err) => {
+    console.error('Erro inesperado no cliente PostgreSQL:', err);
+  });
+
+  console.log('Conectado ao PostgreSQL (Supabase) com sucesso.');
 } else {
   const dbPath = path.join(__dirname, 'kaiowa.db');
   sqliteDb = new sqlite3.Database(dbPath, (err) => {
