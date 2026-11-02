@@ -24,6 +24,7 @@ html, body {
   width: 100%;
   max-width: 100vw;
   overflow-x: hidden;
+  background: transparent !important;
 }
 
 /* Evita zoom automático no mobile ao focar nos campos */
@@ -34,7 +35,9 @@ input, textarea, select {
 /* ENVOLTÓRIO PRINCIPAL */
 .kaiowa-app-wrapper {
   min-height: 100vh;
-  background-color: #ecece4;
+  /* IMPORTANTE: Transparente para revelar o bg-pattern do body nas laterais em PC */
+  background: transparent !important;
+  background-color: transparent !important;
   display: flex;
   justify-content: center;
   width: 100%;
