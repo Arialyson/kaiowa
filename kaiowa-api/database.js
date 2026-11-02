@@ -1,100 +1,57 @@
 const { Pool } = require('pg');
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
 
-let pool = null;
-let sqliteDb = null;
-
-const isPostgres = !!process.env.DATABASE_URL;
-
-if (isPostgres) {
-  let connectionString = process.env.DATABASE_URL;
-
-  // Garante que a senha com @ (seja Arialyson@1987 ou Arialyson%401987) é tratada corretamente
-  if (connectionString.includes('%40')) {
-    connectionString = decodeURIComponent(connectionString);
-  }
-
-  pool = new Pool({
-    connectionString: connectionString,
-    ssl: {
-      rejectUnauthorized: false
-    }
-  });
-
-  pool.on('error', (err) => {
-    console.error('Erro inesperado no cliente PostgreSQL:', err);
-  });
-
-  console.log('Conectado ao PostgreSQL (Supabase) com sucesso.');
-} else {
-  const dbPath = path.join(__dirname, 'kaiowa.db');
-  sqliteDb = new sqlite3.Database(dbPath, (err) => {
-    if (err) {
-      console.error('Erro ao conectar ao SQLite local:', err);
-    } else {
-      console.log('Conectado ao banco de dados SQLite local.');
-    }
-  });
+const rawUrl = process.env.DATABASE_URL;
+if (!rawUrl) {
+  console.error('ERRO: A variável DATABASE_URL não foi definida.');
 }
 
-// Adapter para padronizar chamadas entre pg e sqlite3
+const connectionString = rawUrl && rawUrl.includes('%40') ? decodeURIComponent(rawUrl) : rawUrl;
+
+const pool = new Pool({
+  connectionString: connectionString,
+  ssl: {
+    rejectUnauthorized: false
+  }
+});
+
+pool.on('connect', () => {
+  console.log('Conectado ao PostgreSQL (Supabase) com sucesso.');
+});
+
+pool.on('error', (err) => {
+  console.error('Erro inesperado no cliente PostgreSQL:', err);
+});
+
+// Adapter padronizado para PostgreSQL
 const db = {
   query: async (text, params = []) => {
-    if (isPostgres) {
-      let paramIndex = 1;
-      const pgText = text.replace(/\?/g, () => `$${paramIndex++}`);
-      const res = await pool.query(pgText, params);
-      return res.rows;
-    } else {
-      return new Promise((resolve, reject) => {
-        sqliteDb.all(text, params, (err, rows) => {
-          if (err) reject(err);
-          else resolve(rows);
-        });
-      });
-    }
+    let paramIndex = 1;
+    const pgText = text.replace(/\?/g, () => `$${paramIndex++}`);
+    const res = await pool.query(pgText, params);
+    return res.rows;
   },
 
   get: async (text, params = []) => {
-    if (isPostgres) {
-      let paramIndex = 1;
-      const pgText = text.replace(/\?/g, () => `$${paramIndex++}`);
-      const res = await pool.query(pgText, params);
-      return res.rows[0];
-    } else {
-      return new Promise((resolve, reject) => {
-        sqliteDb.get(text, params, (err, row) => {
-          if (err) reject(err);
-          else resolve(row);
-        });
-      });
-    }
+    let paramIndex = 1;
+    const pgText = text.replace(/\?/g, () => `$${paramIndex++}`);
+    const res = await pool.query(pgText, params);
+    return res.rows[0];
   },
 
   run: async (text, params = []) => {
-    if (isPostgres) {
-      let paramIndex = 1;
-      const pgText = text.replace(/\?/g, () => `$${paramIndex++}`);
-      
-      let finalSql = pgText;
-      if (pgText.trim().toUpperCase().startsWith('INSERT INTO') && !pgText.toUpperCase().includes('RETURNING')) {
-        finalSql += ' RETURNING id';
-      }
-
-      const res = await pool.query(finalSql, params);
-      return { 
-        lastID: res.rows[0]?.id || null, 
-        changes: res.rowCount 
-      };
-    } else {
-      return new Promise((resolve, reject) => {
-        sqliteDb.run(text, params, function (err) {
-          if (err) reject(err);
-          else resolve({ lastID: this.lastID, changes: this.changes });
-        });
-      });
+    let paramIndex = 1;
+    const pgText = text.replace(/\?/g, () => `$${paramIndex++}`);
+    
+    let finalSql = pgText;
+    if (pgText.trim().toUpperCase().startsWith('INSERT INTO') && !pgText.toUpperCase().includes('RETURNING')) {
+      finalSql += ' RETURNING id';
     }
+
+    const res = await pool.query(finalSql, params);
+    return { 
+      lastID: res.rows[0]?.id || null, 
+      changes: res.rowCount 
+    };
   }
 };
 
@@ -104,7 +61,7 @@ async function initTables() {
   if (initPromise) return initPromise;
 
   initPromise = (async () => {
-    const usersSql = isPostgres ? `
+    const usersSql = `
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
         username VARCHAR(255) UNIQUE NOT NULL,
@@ -114,19 +71,9 @@ async function initTables() {
         token TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
-    ` : `
-      CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT UNIQUE NOT NULL,
-        email TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL,
-        avatar TEXT,
-        token TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      );
     `;
 
-    const postsSql = isPostgres ? `
+    const postsSql = `
       CREATE TABLE IF NOT EXISTS posts (
         id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -134,36 +81,18 @@ async function initTables() {
         image_url TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
-    ` : `
-      CREATE TABLE IF NOT EXISTS posts (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
-        content TEXT,
-        image_url TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
-      );
     `;
 
-    const likesSql = isPostgres ? `
+    const likesSql = `
       CREATE TABLE IF NOT EXISTS likes (
         id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
-    ` : `
-      CREATE TABLE IF NOT EXISTS likes (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
-        post_id INTEGER NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
-        FOREIGN KEY (post_id) REFERENCES posts (id) ON DELETE CASCADE
-      );
     `;
 
-    const commentsSql = isPostgres ? `
+    const commentsSql = `
       CREATE TABLE IF NOT EXISTS comments (
         id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -171,19 +100,9 @@ async function initTables() {
         content TEXT NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
-    ` : `
-      CREATE TABLE IF NOT EXISTS comments (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
-        post_id INTEGER NOT NULL,
-        content TEXT NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
-        FOREIGN KEY (post_id) REFERENCES posts (id) ON DELETE CASCADE
-      );
     `;
 
-    const commentReactionsSql = isPostgres ? `
+    const commentReactionsSql = `
       CREATE TABLE IF NOT EXISTS comment_reactions (
         id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -191,19 +110,9 @@ async function initTables() {
         emoji VARCHAR(50) NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
-    ` : `
-      CREATE TABLE IF NOT EXISTS comment_reactions (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
-        comment_id INTEGER NOT NULL,
-        emoji TEXT NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
-        FOREIGN KEY (comment_id) REFERENCES comments (id) ON DELETE CASCADE
-      );
     `;
 
-    const notificationsSql = isPostgres ? `
+    const notificationsSql = `
       CREATE TABLE IF NOT EXISTS notifications (
         id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -213,35 +122,14 @@ async function initTables() {
         is_read INTEGER DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
-    ` : `
-      CREATE TABLE IF NOT EXISTS notifications (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
-        actor_id INTEGER NOT NULL,
-        type TEXT NOT NULL,
-        post_id INTEGER,
-        is_read INTEGER DEFAULT 0,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
-        FOREIGN KEY (actor_id) REFERENCES users (id) ON DELETE CASCADE
-      );
     `;
 
-    const followsSql = isPostgres ? `
+    const followsSql = `
       CREATE TABLE IF NOT EXISTS follows (
         id SERIAL PRIMARY KEY,
         follower_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         following_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    ` : `
-      CREATE TABLE IF NOT EXISTS follows (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        follower_id INTEGER NOT NULL,
-        following_id INTEGER NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (follower_id) REFERENCES users (id) ON DELETE CASCADE,
-        FOREIGN KEY (following_id) REFERENCES users (id) ON DELETE CASCADE
       );
     `;
 
