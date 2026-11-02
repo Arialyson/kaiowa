@@ -198,7 +198,8 @@ input, textarea, select {
 .notifications-dropdown {
   position: absolute;
   top: 48px;
-  right: 0;
+  right: -10;/*Garante alinhamento à direita sem estourar a tela*/
+  left: auto;
   width: 320px;
   max-width: 90vw;
   background-color: #ffffff;
