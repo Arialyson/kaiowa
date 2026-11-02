@@ -198,17 +198,29 @@ input, textarea, select {
 .notifications-dropdown {
   position: absolute;
   top: 48px;
-  right: -10;/*Garante alinhamento à direita sem estourar a tela*/
-  left: auto;
+  right: 0;
   width: 320px;
-  max-width: 90vw;
   background-color: #ffffff;
-  border: 1px solid #dcdcd0;
+  border: 1px solid #dcdcde;
   border-radius: 12px;
   padding: 16px;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-  z-index: 200;
+  z-index: 1000;
   color: #2c3e50;
+  box-sizing: border-box;
+}
+
+/* Centralização Perfeita em Dispositivos Móveis */
+@media (max-width: 600px) {
+  .notifications-dropdown {
+    position: fixed; /* Solta o modal do container do ícone */
+    top: 65px; /* Altura logo abaixo do cabeçalho */
+    left: 50%; /* Move para o meio do ecrã */
+    transform: translateX(-50%); /* Centraliza perfeitamente de forma matemática */
+    right: auto;
+    width: 90vw; /* Ocupa 90% da largura total do telemóvel */
+    max-width: 380px;
+  }
 }
 
 .notifications-header {
