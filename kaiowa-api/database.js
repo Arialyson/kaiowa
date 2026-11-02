@@ -1,4 +1,5 @@
 const { Pool } = require('pg');
+const { createClient } = require('@supabase/supabase-js');
 
 const rawUrl = process.env.DATABASE_URL;
 if (!rawUrl) {
@@ -21,6 +22,11 @@ pool.on('connect', () => {
 pool.on('error', (err) => {
   console.error('Erro inesperado no cliente PostgreSQL:', err);
 });
+
+// Inicialização do cliente Supabase para gerenciar arquivos no Storage
+const supabaseUrl = process.env.SUPABASE_URL || 'https://mzwgvawuvenrouggehpz.supabase.co';
+const supabaseKey = process.env.SUPABASE_ANON_KEY || ''; 
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 const db = {
   query: async (text, params = []) => {
@@ -150,5 +156,6 @@ async function initTables() {
 }
 
 db.init = initTables;
+db.supabase = supabase;
 
 module.exports = db;

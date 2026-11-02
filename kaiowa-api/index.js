@@ -2,15 +2,9 @@ const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
 const db = require('./database');
 
 const app = express();
-
-const uploadsDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
 
 app.use(async (req, res, next) => {
   try {
@@ -31,22 +25,33 @@ app.use(cors({
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-app.use('/uploads', express.static(uploadsDir));
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadsDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
-  }
-});
-
+// Configurar multer para salvar arquivo temporariamente na memória RAM
 const upload = multer({
-  storage: storage,
-  limits: { fileSize: 50 * 1024 * 1024 }
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 } // limite de 10MB por arquivo
 });
+
+// Função auxiliar para enviar arquivos para o Supabase Storage
+async function uploadToSupabase(file) {
+  const filename = `${Date.now()}-${Math.round(Math.random() * 1e9)}${path.extname(file.originalname)}`;
+  
+  const { data, error } = await db.supabase.storage
+    .from('uploads')
+    .upload(filename, file.buffer, {
+      contentType: file.mimetype,
+      upsert: true
+    });
+
+  if (error) {
+    throw error;
+  }
+
+  const { data: publicUrlData } = db.supabase.storage
+    .from('uploads')
+    .getPublicUrl(filename);
+
+  return publicUrlData.publicUrl;
+}
 
 const authenticateToken = async (req, res, next) => {
   const authHeader = req.headers['authorization'];
@@ -119,13 +124,12 @@ app.post('/login', async (req, res) => {
 app.post('/users/avatar', authenticateToken, upload.single('avatar'), async (req, res) => {
   if (!req.file) return res.status(400).json({ erro: 'Nenhuma imagem enviada.' });
 
-  const hostUrl = `${req.protocol}://${req.get('host')}`;
-  const avatarUrl = `${hostUrl}/uploads/${req.file.filename}`;
-  
   try {
+    const avatarUrl = await uploadToSupabase(req.file);
     await db.run('UPDATE users SET avatar = ? WHERE id = ?', [avatarUrl, req.user.id]);
     res.json({ avatar: avatarUrl });
   } catch (err) {
+    console.error('Erro ao fazer upload do avatar:', err);
     res.status(500).json({ erro: 'Erro ao atualizar avatar.' });
   }
 });
@@ -240,8 +244,16 @@ app.post('/posts', authenticateToken, (req, res) => {
     if (err) return res.status(400).json({ erro: `Erro no upload: ${err.message}` });
 
     const content = req.body.content || '';
-    const hostUrl = `${req.protocol}://${req.get('host')}`;
-    const imageUrl = req.file ? `${hostUrl}/uploads/${req.file.filename}` : null;
+    let imageUrl = null;
+
+    if (req.file) {
+      try {
+        imageUrl = await uploadToSupabase(req.file);
+      } catch (uploadErr) {
+        console.error('Erro no upload para o Supabase Storage:', uploadErr);
+        return res.status(500).json({ erro: 'Erro ao processar imagem do post.' });
+      }
+    }
 
     if (!content.trim() && !imageUrl) {
       return res.status(400).json({ erro: 'O post precisa de texto ou imagem.' });
