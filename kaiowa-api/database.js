@@ -22,7 +22,6 @@ pool.on('error', (err) => {
   console.error('Erro inesperado no cliente PostgreSQL:', err);
 });
 
-// Adapter padronizado para PostgreSQL
 const db = {
   query: async (text, params = []) => {
     let paramIndex = 1;
@@ -144,7 +143,6 @@ async function initTables() {
       console.log('Tabelas verificadas/criadas no banco de dados com sucesso.');
     } catch (err) {
       console.error('Erro ao inicializar tabelas:', err);
-      throw err;
     }
   })();
 
@@ -152,6 +150,5 @@ async function initTables() {
 }
 
 db.init = initTables;
-db.init();
 
 module.exports = db;

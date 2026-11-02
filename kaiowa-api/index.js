@@ -12,7 +12,6 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
-// Middleware para garantir a criação das tabelas antes das rotas
 app.use(async (req, res, next) => {
   try {
     await db.init();
