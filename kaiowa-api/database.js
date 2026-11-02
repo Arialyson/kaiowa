@@ -8,8 +8,12 @@ let sqliteDb = null;
 const isPostgres = !!process.env.DATABASE_URL;
 
 if (isPostgres) {
+  // Descodifica %40 para @ real para a biblioteca pg aceitar a senha corretamente
+  const rawUrl = process.env.DATABASE_URL;
+  const connectionString = rawUrl.includes('%') ? decodeURIComponent(rawUrl) : rawUrl;
+
   pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
+    connectionString: connectionString,
     ssl: {
       rejectUnauthorized: false
     }

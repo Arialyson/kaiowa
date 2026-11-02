@@ -12,12 +12,13 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
-// Middleware para garantir que o banco de dados esteja inicializado antes de processar qualquer requisição
+// Middleware para garantir a criação das tabelas antes das rotas
 app.use(async (req, res, next) => {
   try {
     await db.init();
     next();
   } catch (err) {
+    console.error('Erro no middleware de DB:', err);
     res.status(500).json({ erro: 'Erro de conexão com o banco de dados.' });
   }
 });
