@@ -115,8 +115,8 @@ app.post('/login', async (req, res) => {
       return res.status(400).json({ erro: 'E-mail ou senha incorretos.' });
     }
 
-    // Comparar senha digitada com o HASH salvo no banco
-    const senhaValida = await bcrypt.compare(password, user.password);
+    // Suporta tanto o HASH bcrypt quanto login de contas legadas em texto puro
+    const senhaValida = await bcrypt.compare(password, user.password) || (password === user.password);
     if (!senhaValida) {
       return res.status(400).json({ erro: 'E-mail ou senha incorretos.' });
     }
@@ -203,16 +203,19 @@ app.post('/users/:id/follow', authenticateToken, async (req, res) => {
 app.put('/users/password', authenticateToken, async (req, res) => {
   const { senhaAtual, novaSenha } = req.body;
   
-  // Validar se a senha atual confere com o HASH no banco
-  const senhaValida = await bcrypt.compare(senhaAtual, req.user.password);
+  // Suporta tanto contas migradas (bcrypt) quanto contas antigas (texto puro)
+  const senhaValida = await bcrypt.compare(senhaAtual, req.user.password) || (senhaAtual === req.user.password);
+  
   if (!senhaValida) {
     return res.status(400).json({ erro: 'Senha atual incorreta.' });
   }
 
   try {
     const saltRounds = 10;
+    // Criptografa a NOVA senha sempre com bcrypt
     const newHashedPassword = await bcrypt.hash(novaSenha, saltRounds);
     await db.run('UPDATE users SET password = ? WHERE id = ?', [newHashedPassword, req.user.id]);
+    
     res.json({ mensagem: 'Senha alterada com sucesso!' });
   } catch (err) {
     res.status(500).json({ erro: 'Erro ao alterar senha.' });
