@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
+const bcrypt = require('bcrypt');
 const db = require('./database');
 
 const app = express();
@@ -85,9 +86,13 @@ app.post('/users', async (req, res) => {
     return res.status(400).json({ erro: 'Preencha todos os campos obrigatórios.' });
   }
 
-  const query = 'INSERT INTO users (username, email, password) VALUES (?, ?, ?)';
   try {
-    await db.run(query, [username.trim(), email.trim(), password]);
+    // Gerar HASH seguro da senha com bcrypt
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+    const query = 'INSERT INTO users (username, email, password) VALUES (?, ?, ?)';
+    await db.run(query, [username.trim(), email.trim(), hashedPassword]);
     res.status(201).json({ mensagem: 'Usuário cadastrado com sucesso!' });
   } catch (err) {
     console.error('Erro no cadastro:', err);
@@ -105,8 +110,14 @@ app.post('/login', async (req, res) => {
   }
 
   try {
-    const user = await db.get('SELECT * FROM users WHERE email = ? AND password = ?', [email.trim(), password]);
+    const user = await db.get('SELECT * FROM users WHERE email = ?', [email.trim()]);
     if (!user) {
+      return res.status(400).json({ erro: 'E-mail ou senha incorretos.' });
+    }
+
+    // Comparar senha digitada com o HASH salvo no banco
+    const senhaValida = await bcrypt.compare(password, user.password);
+    if (!senhaValida) {
       return res.status(400).json({ erro: 'E-mail ou senha incorretos.' });
     }
 
@@ -117,6 +128,7 @@ app.post('/login', async (req, res) => {
     user.token = token;
     res.json({ token, user });
   } catch (err) {
+    console.error('Erro no login:', err);
     res.status(500).json({ erro: 'Erro ao gerar sessão.' });
   }
 });
@@ -190,12 +202,17 @@ app.post('/users/:id/follow', authenticateToken, async (req, res) => {
 
 app.put('/users/password', authenticateToken, async (req, res) => {
   const { senhaAtual, novaSenha } = req.body;
-  if (req.user.password !== senhaAtual) {
+  
+  // Validar se a senha atual confere com o HASH no banco
+  const senhaValida = await bcrypt.compare(senhaAtual, req.user.password);
+  if (!senhaValida) {
     return res.status(400).json({ erro: 'Senha atual incorreta.' });
   }
 
   try {
-    await db.run('UPDATE users SET password = ? WHERE id = ?', [novaSenha, req.user.id]);
+    const saltRounds = 10;
+    const newHashedPassword = await bcrypt.hash(novaSenha, saltRounds);
+    await db.run('UPDATE users SET password = ? WHERE id = ?', [newHashedPassword, req.user.id]);
     res.json({ mensagem: 'Senha alterada com sucesso!' });
   } catch (err) {
     res.status(500).json({ erro: 'Erro ao alterar senha.' });
