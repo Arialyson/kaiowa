@@ -1,11 +1,65 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import heic2any from 'heic2any';
 
 const DEFAULT_AVATAR = 'https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png';
+
+// Função de otimização e conversão de imagem para os Stories
+const processarFotoStory = async (file) => {
+  let arquivo = file;
+  const nomeLower = file.name.toLowerCase();
+  const ehHeic = nomeLower.endsWith('.heic') || nomeLower.endsWith('.heif') || file.type.includes('heic') || file.type.includes('heif');
+
+  if (ehHeic) {
+    try {
+      const convertedBlob = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.85 });
+      const blobFinal = Array.isArray(convertedBlob) ? convertedBlob[0] : convertedBlob;
+      arquivo = new File([blobFinal], file.name.replace(/\.[^/.]+$/, '.jpg'), { type: 'image/jpeg' });
+    } catch (e) {
+      console.warn('Conversão HEIC ignorada:', e);
+    }
+  }
+
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(arquivo);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target.result;
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+        const maxWidth = 1080;
+
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        canvas.toBlob((blob) => {
+          if (blob) {
+            resolve(new File([blob], arquivo.name.replace(/\.[^/.]+$/, '.jpg'), { type: 'image/jpeg' }));
+          } else {
+            resolve(arquivo);
+          }
+        }, 'image/jpeg', 0.82);
+      };
+      img.onerror = () => resolve(arquivo);
+    };
+    reader.onerror = () => resolve(arquivo);
+  });
+};
 
 export default function StoriesBar({ token, usuario, API_URL }) {
   const [stories, setStories] = useState([]);
   const [selectedStory, setSelectedStory] = useState(null);
+  const [enviando, setEnviando] = useState(false);
 
   useEffect(() => {
     if (token) carregarStories();
@@ -26,16 +80,25 @@ export default function StoriesBar({ token, usuario, API_URL }) {
     const file = e.target.files[0];
     if (!file) return;
 
-    const formData = new FormData();
-    formData.append('story', file);
-
+    setEnviando(true);
     try {
+      const fotoProcessada = await processarFotoStory(file);
+      const formData = new FormData();
+      formData.append('story', fotoProcessada);
+
       await axios.post(`${API_URL}/stories`, formData, {
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data'
+        }
       });
-      carregarStories();
+
+      await carregarStories();
     } catch (err) {
-      alert('Erro ao enviar story');
+      console.error('Detalhe do erro no upload do story:', err.response?.data || err.message);
+      alert(err.response?.data?.erro || 'Erro ao enviar story. Verifique a consola.');
+    } finally {
+      setEnviando(false);
     }
   };
 
@@ -43,19 +106,21 @@ export default function StoriesBar({ token, usuario, API_URL }) {
     <>
       <div style={{ display: 'flex', gap: '12px', paddingBottom: '12px', overflowX: 'auto', borderBottom: '1px solid rgba(255,255,255,0.1)', marginBottom: '12px' }}>
         {/* Botão de Adicionar Story */}
-        <label style={{ textAlign: 'center', cursor: 'pointer', flexShrink: 0 }}>
+        <label style={{ textAlign: 'center', cursor: enviando ? 'wait' : 'pointer', flexShrink: 0, opacity: enviando ? 0.6 : 1 }}>
           <div style={{
             width: '56px', height: '56px', borderRadius: '50%',
             border: '2px dashed #4caf50', display: 'flex', alignItems: 'center',
             justifyContent: 'center', fontSize: '22px', color: '#4caf50', background: 'rgba(76, 175, 80, 0.1)'
           }}>
-            +
+            {enviando ? '⌛' : '+'}
           </div>
-          <span style={{ fontSize: '11px', color: '#ccc', marginTop: '4px', display: 'block' }}>Seu story</span>
-          <input type="file" accept="image/*" onChange={handleUploadStory} style={{ display: 'none' }} />
+          <span style={{ fontSize: '11px', color: '#ccc', marginTop: '4px', display: 'block' }}>
+            {enviando ? 'Enviando...' : 'Seu story'}
+          </span>
+          <input type="file" accept="image/*" onChange={handleUploadStory} disabled={enviando} style={{ display: 'none' }} />
         </label>
 
-        {/* Lista de Stories (Últimas 24h) */}
+        {/* Lista de Stories das últimas 24h */}
         {stories.map((s) => (
           <div key={s.id} onClick={() => setSelectedStory(s)} style={{ textAlign: 'center', cursor: 'pointer', flexShrink: 0 }}>
             <img
@@ -70,7 +135,7 @@ export default function StoriesBar({ token, usuario, API_URL }) {
         ))}
       </div>
 
-      {/* Modal para visualizar o Story clicado */}
+      {/* Modal para visualizar o Story */}
       {selectedStory && (
         <div 
           onClick={() => setSelectedStory(null)} 

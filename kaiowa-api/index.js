@@ -7,11 +7,7 @@ const db = require('./database');
 
 const app = express();
 
-// ==========================================
-// MIDDLEWARES DE CONFIGURAÇÃO E CONEXÃO
-// ==========================================
-
-// Middleware para garantir a inicialização e conexão com o banco de dados a cada requisição
+// Middleware de conexão com a base de dados
 app.use(async (req, res, next) => {
   try {
     await db.init();
@@ -22,31 +18,22 @@ app.use(async (req, res, next) => {
   }
 });
 
-// Configuração de CORS para permitir requisições do frontend
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Parsers para requisições em formato JSON e formulários (URL-encoded)
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// Configuração do Multer para armazenar temporariamente arquivos na memória RAM antes do upload
+// Configuração do Multer (Armazenamento em memória RAM)
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 } // Limite máximo de 10MB por arquivo
+  limits: { fileSize: 10 * 1024 * 1024 }
 });
 
-// ==========================================
-// FUNÇÕES AUXILIARES E MIDDLEWARE DE AUTENTICAÇÃO
-// ==========================================
-
-/**
- * Envia um arquivo da memória RAM para o bucket 'uploads' no Supabase Storage
- * e retorna a sua URL pública de acesso.
- */
+// Auxiliar para enviar ficheiros para o Supabase Storage
 async function uploadToSupabase(file) {
   const filename = `${Date.now()}-${Math.round(Math.random() * 1e9)}${path.extname(file.originalname)}`;
   
@@ -68,10 +55,6 @@ async function uploadToSupabase(file) {
   return publicUrlData.publicUrl;
 }
 
-/**
- * Middleware para validar o Token Bearer enviado no header Authorization.
- * Anexa os dados do usuário autenticado a `req.user`.
- */
 const authenticateToken = async (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -87,10 +70,6 @@ const authenticateToken = async (req, res, next) => {
   }
 };
 
-/**
- * Cria um registro de notificação para ações como curtidas, comentários e novos seguidores.
- * Evita notificar o próprio usuário que realizou a ação.
- */
 const criarNotificacao = async (userId, actorId, type, postId = null) => {
   if (userId === actorId) return;
   const query = 'INSERT INTO notifications (user_id, actor_id, type, post_id) VALUES (?, ?, ?, ?)';
@@ -105,7 +84,6 @@ const criarNotificacao = async (userId, actorId, type, postId = null) => {
 // ROTAS DE USUÁRIOS E AUTENTICAÇÃO
 // ==========================================
 
-// Rota de cadastro de novos usuários com criptografia bcrypt
 app.post('/users', async (req, res) => {
   const { username, email, password } = req.body;
   if (!username || !email || !password) {
@@ -128,7 +106,6 @@ app.post('/users', async (req, res) => {
   }
 });
 
-// Rota de login de usuário (suporta hashes bcrypt e senhas legadas)
 app.post('/login', async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) {
@@ -158,7 +135,6 @@ app.post('/login', async (req, res) => {
   }
 });
 
-// Rota para redefinição de senha esquecida
 app.post('/forgot-password', async (req, res) => {
   const { email, newPassword } = req.body;
 
@@ -184,7 +160,6 @@ app.post('/forgot-password', async (req, res) => {
   }
 });
 
-// Rota para upload da foto de perfil (avatar)
 app.post('/users/avatar', authenticateToken, upload.single('avatar'), async (req, res) => {
   if (!req.file) return res.status(400).json({ erro: 'Nenhuma imagem enviada.' });
 
@@ -198,7 +173,6 @@ app.post('/users/avatar', authenticateToken, upload.single('avatar'), async (req
   }
 });
 
-// Rota para busca de usuários pelo nome de usuário
 app.get('/users/search', authenticateToken, async (req, res) => {
   const q = req.query.q || '';
   const query = `
@@ -217,7 +191,6 @@ app.get('/users/search', authenticateToken, async (req, res) => {
   }
 });
 
-// Rota para carregar estatísticas do perfil (número de seguidores e seguindo)
 app.get('/users/:id/stats', async (req, res) => {
   const userId = req.params.id;
   const query = `
@@ -233,7 +206,6 @@ app.get('/users/:id/stats', async (req, res) => {
   }
 });
 
-// Rota para alternar ação de seguir/deixar de seguir outro usuário
 app.post('/users/:id/follow', authenticateToken, async (req, res) => {
   const targetId = parseInt(req.params.id);
   if (targetId === req.user.id) {
@@ -255,7 +227,6 @@ app.post('/users/:id/follow', authenticateToken, async (req, res) => {
   }
 });
 
-// Rota para alteração de senha dentro das configurações da conta
 app.put('/users/password', authenticateToken, async (req, res) => {
   const { senhaAtual, novaSenha } = req.body;
   
@@ -276,7 +247,6 @@ app.put('/users/password', authenticateToken, async (req, res) => {
   }
 });
 
-// Rota para exclusão permanente da conta do usuário autenticado
 app.delete('/users/me', authenticateToken, async (req, res) => {
   try {
     await db.run('DELETE FROM users WHERE id = ?', [req.user.id]);
@@ -290,7 +260,6 @@ app.delete('/users/me', authenticateToken, async (req, res) => {
 // ROTAS DE STORIES (24 Horas)
 // ==========================================
 
-// Rota para listar todos os Stories publicados nas últimas 24 horas
 app.get('/stories', authenticateToken, async (req, res) => {
   const query = `
     SELECT stories.id, stories.image_url, stories.created_at, stories.user_id,
@@ -309,7 +278,6 @@ app.get('/stories', authenticateToken, async (req, res) => {
   }
 });
 
-// Rota para fazer upload e publicar um novo Story
 app.post('/stories', authenticateToken, upload.single('story'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ erro: 'Nenhuma imagem enviada para o story.' });
@@ -332,7 +300,6 @@ app.post('/stories', authenticateToken, upload.single('story'), async (req, res)
 // ROTAS DE NOTIFICAÇÕES
 // ==========================================
 
-// Rota para buscar as últimas notificações do usuário
 app.get('/notifications', authenticateToken, async (req, res) => {
   const query = `
     SELECT notifications.*, users.username AS actor_username, users.avatar AS actor_avatar
@@ -350,7 +317,6 @@ app.get('/notifications', authenticateToken, async (req, res) => {
   }
 });
 
-// Rota para marcar todas as notificações não lidas como lidas
 app.put('/notifications/read', authenticateToken, async (req, res) => {
   try {
     await db.run('UPDATE notifications SET is_read = 1 WHERE user_id = ?', [req.user.id]);
@@ -364,7 +330,6 @@ app.put('/notifications/read', authenticateToken, async (req, res) => {
 // ROTAS DE POSTAGENS (FEED)
 // ==========================================
 
-// Rota para criação de novos posts no feed (com texto e/ou foto)
 app.post('/posts', authenticateToken, (req, res) => {
   upload.single('image')(req, res, async (err) => {
     if (err) return res.status(400).json({ erro: `Erro no upload: ${err.message}` });
@@ -395,7 +360,6 @@ app.post('/posts', authenticateToken, (req, res) => {
   });
 });
 
-// Rota para listar publicações do feed com contagem de curtidas e comentários
 app.get('/posts', authenticateToken, async (req, res) => {
   const query = `
     SELECT posts.*, users.username, users.avatar,
@@ -415,7 +379,6 @@ app.get('/posts', authenticateToken, async (req, res) => {
   }
 });
 
-// Rota para exclusão de um post do usuário
 app.delete('/posts/:id', authenticateToken, async (req, res) => {
   try {
     const result = await db.run('DELETE FROM posts WHERE id = ? AND user_id = ?', [req.params.id, req.user.id]);
@@ -430,7 +393,6 @@ app.delete('/posts/:id', authenticateToken, async (req, res) => {
 // ROTAS DE CURTIDAS E COMENTÁRIOS
 // ==========================================
 
-// Rota para alternar curtida em um post
 app.post('/likes', authenticateToken, async (req, res) => {
   const postId = Number(req.body.post_id || req.body.postId);
 
@@ -454,7 +416,6 @@ app.post('/likes', authenticateToken, async (req, res) => {
   }
 });
 
-// Rota para listar comentários e reações de um post específico
 app.get('/posts/:id/comments', async (req, res) => {
   const query = `
     SELECT comments.*, users.username, users.avatar 
@@ -483,7 +444,6 @@ app.get('/posts/:id/comments', async (req, res) => {
   }
 });
 
-// Rota para adicionar um comentário em um post
 app.post('/posts/:id/comments', authenticateToken, async (req, res) => {
   const { content } = req.body;
   if (!content || !content.trim()) return res.status(400).json({ erro: 'Comentário vazio.' });
@@ -498,7 +458,6 @@ app.post('/posts/:id/comments', authenticateToken, async (req, res) => {
   }
 });
 
-// Rota para alternar reações com emoji em um comentário
 app.post('/comments/:id/react', authenticateToken, async (req, res) => {
   const { emoji } = req.body;
   const commentId = req.params.id;
