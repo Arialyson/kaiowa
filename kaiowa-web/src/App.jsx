@@ -514,11 +514,11 @@ function App() {
     <div className="kaiowa-app-wrapper">
       <div className="kaiowa-container">
         
-        {/* ================================================================= */}
-        {/* BLOCO FIXO DO TOPO (HEADER + STORIES + SEGUIDORES + BUSCA)       */}
-        {/* ================================================================= */}
-        <div style={{ position: 'sticky', top: 0, zIndex: 1000, background: '#091c13', padding: '12px 16px', borderRadius: '0 0 16px 16px', boxShadow: '0 4px 12px rgba(0,0,0,0.4)' }}>
-          <header className="kaiowa-header" style={{ margin: 0, padding: 0 }}>
+        {/* ===================================================================== */}
+        {/* CONTAINER STICKY DO TOPO (HEADER + PROFILE SUMMARY CARD ORIGINAL)     */}
+        {/* ===================================================================== */}
+        <div style={{ position: 'sticky', top: 0, zIndex: 1000 }}>
+          <header className="kaiowa-header">
             <div className="logo-area">
               <img src="/logo-vazado.png" alt="Kaiowá Logo" className="kaiowa-logo-header" />
             </div>
@@ -583,16 +583,14 @@ function App() {
           </header>
 
           {usuario && (
-            <div style={{ marginTop: '12px' }}>
-              {/* STORIES INTEGRADO NO HEADER FIXO */}
+            <div className="profile-summary-card">
               <StoriesBar token={token} usuario={usuario} API_URL={API_URL} />
               
-              <div className="stats-box" style={{ margin: '8px 0' }}>
+              <div className="stats-box">
                 <span><strong>{userStats.following_count}</strong> Seguindo</span>
                 <span><strong>{userStats.followers_count}</strong> Seguidores</span>
               </div>
-
-              <form onSubmit={handleFormBusca} className="search-user-box" style={{ margin: 0 }}>
+              <form onSubmit={handleFormBusca} className="search-user-box">
                 <input
                   type="text"
                   placeholder="Procurar utilizadores..."
@@ -706,7 +704,7 @@ function App() {
         )}
 
         {/* ===================================================== */}
-        {/* CONTEÚDO PRINCIPAL QUE DESLIZA E ROLA POR BAIXO DO TOPO*/}
+        {/* FEED PRINCIPAL QUE ROLA NORMALMENTE                    */}
         {/* ===================================================== */}
         <main className="kaiowa-main">
           {!token ? (
