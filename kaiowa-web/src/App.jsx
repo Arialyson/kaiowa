@@ -515,9 +515,9 @@ function App() {
       <div className="kaiowa-container">
         
         {/* ===================================================================== */}
-        {/* CONTAINER STICKY DO TOPO (HEADER + PROFILE SUMMARY CARD ORIGINAL)     */}
+        {/* BLOCO FIXO NATURAL (FIXA HEADER + PROFILE SUMMARY CARD DO DESIGN)     */}
         {/* ===================================================================== */}
-        <div style={{ position: 'sticky', top: 0, zIndex: 1000 }}>
+        <div style={{ position: 'sticky', top: 0, zIndex: 1000, marginBottom: '16px' }}>
           <header className="kaiowa-header">
             <div className="logo-area">
               <img src="/logo-vazado.png" alt="Kaiowá Logo" className="kaiowa-logo-header" />
@@ -704,7 +704,7 @@ function App() {
         )}
 
         {/* ===================================================== */}
-        {/* FEED PRINCIPAL QUE ROLA NORMALMENTE                    */}
+        {/* FEED PRINCIPAL QUE ROLA POR BAIXO DO TOPO              */}
         {/* ===================================================== */}
         <main className="kaiowa-main">
           {!token ? (
