@@ -7,7 +7,11 @@ const db = require('./database');
 
 const app = express();
 
-// Middleware de conexão com a base de dados
+// ==========================================
+// MIDDLEWARES DE CONFIGURAÇÃO E CONEXÃO
+// ==========================================
+
+// Middleware para garantir a inicialização e conexão com o banco de dados a cada requisição
 app.use(async (req, res, next) => {
   try {
     await db.init();
@@ -18,22 +22,31 @@ app.use(async (req, res, next) => {
   }
 });
 
+// Configuração de CORS para permitir requisições do frontend
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
+// Parsers para requisições em formato JSON e formulários (URL-encoded)
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// Configuração do Multer (Armazenamento em memória RAM)
+// Configuração do Multer para armazenar temporariamente arquivos na memória RAM antes do upload
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 }
+  limits: { fileSize: 10 * 1024 * 1024 } // Limite máximo de 10MB por arquivo
 });
 
-// Auxiliar para enviar ficheiros para o Supabase Storage
+// ==========================================
+// FUNÇÕES AUXILIARES E MIDDLEWARE DE AUTENTICAÇÃO
+// ==========================================
+
+/**
+ * Envia um arquivo da memória RAM para o bucket 'uploads' no Supabase Storage
+ * e retorna a sua URL pública de acesso.
+ */
 async function uploadToSupabase(file) {
   const filename = `${Date.now()}-${Math.round(Math.random() * 1e9)}${path.extname(file.originalname)}`;
   
@@ -55,6 +68,10 @@ async function uploadToSupabase(file) {
   return publicUrlData.publicUrl;
 }
 
+/**
+ * Middleware para validar o Token Bearer enviado no header Authorization.
+ * Anexa os dados do usuário autenticado a `req.user`.
+ */
 const authenticateToken = async (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -70,6 +87,10 @@ const authenticateToken = async (req, res, next) => {
   }
 };
 
+/**
+ * Cria um registro de notificação para ações como curtidas, comentários e novos seguidores.
+ * Evita notificar o próprio usuário que realizou a ação.
+ */
 const criarNotificacao = async (userId, actorId, type, postId = null) => {
   if (userId === actorId) return;
   const query = 'INSERT INTO notifications (user_id, actor_id, type, post_id) VALUES (?, ?, ?, ?)';
@@ -257,7 +278,7 @@ app.delete('/users/me', authenticateToken, async (req, res) => {
 });
 
 // ==========================================
-// ROTAS DE STORIES (24 Horas)
+// ROTAS DE STORIES (24 Horas com Tratamento de Erro Detalhado)
 // ==========================================
 
 app.get('/stories', authenticateToken, async (req, res) => {
@@ -284,15 +305,21 @@ app.post('/stories', authenticateToken, upload.single('story'), async (req, res)
   }
 
   try {
+    // 1. Upload do arquivo para o bucket do Supabase Storage
     const imageUrl = await uploadToSupabase(req.file);
 
+    // 2. Inserção do registro na tabela stories
     const query = 'INSERT INTO stories (user_id, image_url) VALUES (?, ?)';
     await db.run(query, [req.user.id, imageUrl]);
 
     res.status(201).json({ mensagem: 'Story publicado com sucesso!', image_url: imageUrl });
   } catch (err) {
-    console.error('Erro ao publicar story:', err);
-    res.status(500).json({ erro: 'Erro ao processar o story.' });
+    // Imprime a causa exata da falha no terminal do servidor Node.js
+    console.error('ERRO DETALHADO NO POST /STORIES:', err);
+
+    res.status(500).json({ 
+      erro: err.message || 'Erro ao processar o story.' 
+    });
   }
 });
 
