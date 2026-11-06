@@ -278,7 +278,7 @@ app.delete('/users/me', authenticateToken, async (req, res) => {
 });
 
 // ==========================================
-// ROTAS DE STORIES (24 Horas)
+// ROTAS DE STORIES (24 Horas + Exclusão)
 // ==========================================
 
 app.get('/stories', authenticateToken, async (req, res) => {
@@ -293,7 +293,6 @@ app.get('/stories', authenticateToken, async (req, res) => {
   try {
     const rows = await db.query(query, []);
     
-    // Garante que a URL da imagem seja sempre um link HTTP público e completo do Supabase
     const supabaseBaseUrl = process.env.SUPABASE_URL || 'https://mzwgvawuvenrouggehpz.supabase.co';
     const storiesFormatados = (rows || []).map(s => {
       let url = s.image_url || '';
@@ -316,10 +315,7 @@ app.post('/stories', authenticateToken, upload.single('story'), async (req, res)
   }
 
   try {
-    // 1. Upload do arquivo para o bucket do Supabase Storage
     const imageUrl = await uploadToSupabase(req.file);
-
-    // 2. Inserção do registro na tabela stories
     const query = 'INSERT INTO stories (user_id, image_url) VALUES (?, ?)';
     await db.run(query, [req.user.id, imageUrl]);
 
@@ -327,6 +323,34 @@ app.post('/stories', authenticateToken, upload.single('story'), async (req, res)
   } catch (err) {
     console.error('ERRO DETALHADO NO POST /STORIES:', err);
     res.status(500).json({ erro: err.message || 'Erro ao processar o story.' });
+  }
+});
+
+app.delete('/stories/:id', authenticateToken, async (req, res) => {
+  const storyId = req.params.id;
+  
+  try {
+    const story = await db.get('SELECT * FROM stories WHERE id = ? AND user_id = ?', [storyId, req.user.id]);
+    
+    if (!story) {
+      return res.status(404).json({ erro: 'Story não encontrado ou você não tem permissão para excluí-lo.' });
+    }
+
+    try {
+      const urlParts = story.image_url.split('/uploads/');
+      if (urlParts.length > 1) {
+        const filePath = urlParts[1];
+        await db.supabase.storage.from('uploads').remove([filePath]);
+      }
+    } catch (storageErr) {
+      console.warn('Não foi possível remover o arquivo do Storage:', storageErr.message);
+    }
+
+    await db.run('DELETE FROM stories WHERE id = ?', [storyId]);
+    res.json({ mensagem: 'Story excluído com sucesso!' });
+  } catch (err) {
+    console.error('Erro ao excluir story:', err);
+    res.status(500).json({ erro: 'Erro ao excluir o story.' });
   }
 });
 

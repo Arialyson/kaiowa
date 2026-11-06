@@ -57,14 +57,14 @@ const processarFotoStory = async (file) => {
 
 export default function StoriesBar({ token, usuario, API_URL }) {
   const [stories, setStories] = useState([]);
-  const [selectedIndex, setSelectedIndex] = useState(null); // Guarda o índice do story aberto
+  const [selectedIndex, setSelectedIndex] = useState(null);
   const [enviando, setEnviando] = useState(false);
+  const [excluindo, setExcluindo] = useState(false);
 
   useEffect(() => {
     if (token) carregarStories();
   }, [token]);
 
-  // Permite navegar com as setas do teclado (Esquerda / Direita / ESC)
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (selectedIndex === null) return;
@@ -114,6 +114,25 @@ export default function StoriesBar({ token, usuario, API_URL }) {
     }
   };
 
+  const handleExcluirStory = async (storyId) => {
+    if (!window.confirm('Tem certeza que deseja excluir este story?')) return;
+
+    setExcluindo(true);
+    try {
+      await axios.delete(`${API_URL}/stories/${storyId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      setSelectedIndex(null);
+      await carregarStories();
+    } catch (err) {
+      console.error('Erro ao excluir story:', err);
+      alert(err.response?.data?.erro || 'Erro ao excluir story.');
+    } finally {
+      setExcluindo(false);
+    }
+  };
+
   const proximoStory = (direcao) => {
     if (selectedIndex === null) return;
     const novoIndice = selectedIndex + direcao;
@@ -124,6 +143,7 @@ export default function StoriesBar({ token, usuario, API_URL }) {
   };
 
   const currentStory = selectedIndex !== null ? stories[selectedIndex] : null;
+  const ehDonoDoStory = currentStory && usuario && Number(currentStory.user_id) === Number(usuario.id);
 
   return (
     <>
@@ -158,7 +178,7 @@ export default function StoriesBar({ token, usuario, API_URL }) {
         ))}
       </div>
 
-      {/* Modal de Visualização com Navegação */}
+      {/* Modal de Visualização */}
       {currentStory && (
         <div 
           onClick={() => setSelectedIndex(null)} 
@@ -179,7 +199,7 @@ export default function StoriesBar({ token, usuario, API_URL }) {
             ✕
           </button>
 
-          {/* Botão Voltar (Anterior) */}
+          {/* Botão Voltar */}
           {selectedIndex > 0 && (
             <button
               onClick={(e) => { e.stopPropagation(); proximoStory(-1); }}
@@ -196,33 +216,59 @@ export default function StoriesBar({ token, usuario, API_URL }) {
             </button>
           )}
 
-          {/* Conteúdo Central do Story */}
-          <div onClick={(e) => e.stopPropagation()} style={{ textAlign: 'center', maxWidth: '100%', maxHeight: '85vh' }}>
+          {/* Conteúdo Central */}
+          <div onClick={(e) => e.stopPropagation()} style={{ textAlign: 'center', maxWidth: '100%', maxHeight: '85vh', position: 'relative' }}>
             <img 
               src={currentStory.image_url} 
               alt="Story" 
               style={{ 
                 maxWidth: '90vw', 
-                maxHeight: '75vh', 
+                maxHeight: '70vh', 
                 borderRadius: '12px', 
                 objectFit: 'contain',
                 boxShadow: '0px 4px 20px rgba(0,0,0,0.6)',
                 background: '#111'
               }} 
             />
-            <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-              <img 
-                src={currentStory.avatar || DEFAULT_AVATAR} 
-                alt={currentStory.username} 
-                style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }} 
-              />
-              <span style={{ color: '#fff', fontWeight: 'bold', fontSize: '14px' }}>
-                @{currentStory.username}
-              </span>
+            
+            <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <img 
+                  src={currentStory.avatar || DEFAULT_AVATAR} 
+                  alt={currentStory.username} 
+                  style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }} 
+                />
+                <span style={{ color: '#fff', fontWeight: 'bold', fontSize: '14px' }}>
+                  @{currentStory.username}
+                </span>
+              </div>
+
+              {/* Botão Excluir (Apenas para o proprietário) */}
+              {ehDonoDoStory && (
+                <button
+                  onClick={() => handleExcluirStory(currentStory.id)}
+                  disabled={excluindo}
+                  style={{
+                    background: 'rgba(255, 71, 87, 0.2)',
+                    border: '1px solid #ff4757',
+                    color: '#ff4757',
+                    padding: '6px 12px',
+                    borderRadius: '20px',
+                    fontSize: '12px',
+                    cursor: excluindo ? 'wait' : 'pointer',
+                    fontWeight: 'bold',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  🗑️ {excluindo ? 'Excluindo...' : 'Excluir'}
+                </button>
+              )}
             </div>
           </div>
 
-          {/* Botão Avançar (Próximo) */}
+          {/* Botão Avançar */}
           {selectedIndex < stories.length - 1 && (
             <button
               onClick={(e) => { e.stopPropagation(); proximoStory(1); }}
