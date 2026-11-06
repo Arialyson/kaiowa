@@ -116,6 +116,7 @@ const IconTrash = () => (
 );
 
 function App() {
+  const [showPassword, setShowPassword] = useState(false);
   const [token, setToken] = useState(localStorage.getItem('token') || '');
   const [usuario, setUsuario] = useState(() => {
     try {
@@ -129,7 +130,7 @@ function App() {
   const [isForgotOpen, setIsForgotOpen] = useState(false);
 
   const [isRegister, setIsRegister] = useState(false);
-
+  
   const [userStats, setUserStats] = useState({ followers_count: 0, following_count: 0 });
 
   const [termoBusca, setTermoBusca] = useState('');
@@ -569,24 +570,63 @@ function App() {
 
               {msgConfig && <div className="info-message">{msgConfig}</div>}
 
-              <form onSubmit={handleAlterarSenha} className="settings-form">
-                <h4>Trocar Senha</h4>
-                <input
-                  type="password"
-                  placeholder="Senha Atual"
-                  value={senhaAtual}
-                  onChange={(e) => setSenhaAtual(e.target.value)}
-                  required
-                />
-                <input
-                  type="password"
-                  placeholder="Nova Senha"
-                  value={novaSenha}
-                  onChange={(e) => setNovaSenha(e.target.value)}
-                  required
-                />
-                <button type="submit" className="btn-primary">Atualizar Senha</button>
-              </form>
+ <form onSubmit={handleAlterarSenha} className="settings-form">
+        <h4>Trocar Senha</h4>
+        
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', marginBottom: '10px' }}>
+          <input
+            type={showPassword ? "text" : "password"}
+            placeholder="Senha Atual"
+            value={senhaAtual}
+            onChange={(e) => setSenhaAtual(e.target.value)}
+            required
+            style={{ width: '100%', paddingRight: '40px' }}
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            style={{
+              position: 'absolute',
+              right: '10px',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: '16px',
+              color: '#666'
+            }}
+          >
+            {showPassword ? '👁️' : '🙈'}
+          </button>
+        </div>
+
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', marginBottom: '10px' }}>
+          <input
+            type={showPassword ? "text" : "password"}
+            placeholder="Nova Senha"
+            value={novaSenha}
+            onChange={(e) => setNovaSenha(e.target.value)}
+            required
+            style={{ width: '100%', paddingRight: '40px' }}
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            style={{
+              position: 'absolute',
+              right: '10px',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: '16px',
+              color: '#666'
+            }}
+          >
+            {showPassword ? '👁️' : '🙈'}
+          </button>
+        </div>
+
+        <button type="submit" className="btn-primary">Atualizar Senha</button>
+      </form>
 
               <div className="danger-zone">
                 <h4>Zona de Perigo</h4>
