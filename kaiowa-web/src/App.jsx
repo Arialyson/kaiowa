@@ -646,43 +646,58 @@ function App() {
               </div>
 
               <form onSubmit={handleAuth} className="auth-social-form">
-                {isRegister && (
-                  <div className="input-field-social">
-                    <input
-                      type="text"
-                      placeholder="Nome de utilizador"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      required
-                    />
-                  </div>
-                )}
+              {isRegister && (
                 <div className="input-field-social">
                   <input
-                    type="email"
-                    placeholder="E-mail"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    type="text"
+                    placeholder="Nome de utilizador"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
                     required
                   />
                 </div>
-                <div className="input-field-social">
-                  <input
-                    type="password"
-                    placeholder="Senha"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                  />
-                </div>
+              )}
+              <div className="input-field-social">
+                <input
+                  type="email"
+                  placeholder="E-mail"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="input-field-social">
+                <input
+                  type="password"
+                  placeholder="Senha"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </div>
 
-                {erro && <div className="error-message">{erro}</div>}
-
-                <button type="submit" className="btn-social-primary">
-                  {isRegister ? 'Inscrever-se' : 'Entrar'}
+              {/* BOTÃO ESQUECEU A SENHA */}
+              {!isRegister && (
+                <button 
+                  type="button" 
+                  className="btn-forgot-password"
+                  onClick={() => setIsForgotOpen(true)}
+                >
+                  Esqueceu a senha?
                 </button>
-              </form>
+              )}
 
+              {erro && <div className="error-message">{erro}</div>}
+
+              {/* BOTÃO COM SPINNER */}
+              <button type="submit" className="btn-social-primary" disabled={loadingAuth}>
+                {loadingAuth ? (
+                  <span className="spinner-btn"></span>
+                ) : (
+                  isRegister ? 'Inscrever-se' : 'Entrar'
+                )}
+              </button>
+            </form>
               <div className="auth-divider">
                 <span>ou</span>
               </div>
