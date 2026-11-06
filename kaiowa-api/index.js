@@ -278,7 +278,7 @@ app.delete('/users/me', authenticateToken, async (req, res) => {
 });
 
 // ==========================================
-// ROTAS DE STORIES (24 Horas com Tratamento de Erro Detalhado)
+// ROTAS DE STORIES (24 Horas)
 // ==========================================
 
 app.get('/stories', authenticateToken, async (req, res) => {
@@ -292,7 +292,18 @@ app.get('/stories', authenticateToken, async (req, res) => {
   `;
   try {
     const rows = await db.query(query, []);
-    res.json(rows || []);
+    
+    // Garante que a URL da imagem seja sempre um link HTTP público e completo do Supabase
+    const supabaseBaseUrl = process.env.SUPABASE_URL || 'https://mzwgvawuvenrouggehpz.supabase.co';
+    const storiesFormatados = (rows || []).map(s => {
+      let url = s.image_url || '';
+      if (url && !url.startsWith('http')) {
+        url = `${supabaseBaseUrl}/storage/v1/object/public/uploads/${url}`;
+      }
+      return { ...s, image_url: url };
+    });
+
+    res.json(storiesFormatados);
   } catch (err) {
     console.error('Erro ao buscar stories:', err);
     res.status(500).json({ erro: 'Erro ao carregar os stories.' });
@@ -314,12 +325,8 @@ app.post('/stories', authenticateToken, upload.single('story'), async (req, res)
 
     res.status(201).json({ mensagem: 'Story publicado com sucesso!', image_url: imageUrl });
   } catch (err) {
-    // Imprime a causa exata da falha no terminal do servidor Node.js
     console.error('ERRO DETALHADO NO POST /STORIES:', err);
-
-    res.status(500).json({ 
-      erro: err.message || 'Erro ao processar o story.' 
-    });
+    res.status(500).json({ erro: err.message || 'Erro ao processar o story.' });
   }
 });
 
