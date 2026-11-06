@@ -1,3 +1,6 @@
+import StoriesBar from './components/StoriesBar';
+import toast, { Toaster } from 'react-hot-toast';
+import { Eye, EyeOff } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import heic2any from 'heic2any';
@@ -652,13 +655,14 @@ function App() {
         )}
 
         <main className="kaiowa-main">
-          {usuario && (
-            <div className="profile-summary-card">
-              <div className="stats-box">
-                <span><strong>{userStats.following_count}</strong> Seguindo</span>
-                <span><strong>{userStats.followers_count}</strong> Seguidores</span>
-              </div>
-
+         {usuario && (
+  <div className="profile-summary-card">
+    <StoriesBar token={token} usuario={usuario} API_URL={API_URL} />
+    
+    <div className="stats-box">
+      <span><strong>{userStats.following_count}</strong> Seguindo</span>
+      <span><strong>{userStats.followers_count}</strong> Seguidores</span>
+    </div>
               <form onSubmit={handleFormBusca} className="search-user-box">
                 <input
                   type="text"
