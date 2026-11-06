@@ -57,12 +57,25 @@ const processarFotoStory = async (file) => {
 
 export default function StoriesBar({ token, usuario, API_URL }) {
   const [stories, setStories] = useState([]);
-  const [selectedStory, setSelectedStory] = useState(null);
+  const [selectedIndex, setSelectedIndex] = useState(null); // Guarda o índice do story aberto
   const [enviando, setEnviando] = useState(false);
 
   useEffect(() => {
     if (token) carregarStories();
   }, [token]);
+
+  // Permite navegar com as setas do teclado (Esquerda / Direita / ESC)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (selectedIndex === null) return;
+      if (e.key === 'ArrowLeft') proximoStory(-1);
+      if (e.key === 'ArrowRight') proximoStory(1);
+      if (e.key === 'Escape') setSelectedIndex(null);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedIndex, stories]);
 
   const carregarStories = async () => {
     try {
@@ -101,6 +114,17 @@ export default function StoriesBar({ token, usuario, API_URL }) {
     }
   };
 
+  const proximoStory = (direcao) => {
+    if (selectedIndex === null) return;
+    const novoIndice = selectedIndex + direcao;
+
+    if (novoIndice >= 0 && novoIndice < stories.length) {
+      setSelectedIndex(novoIndice);
+    }
+  };
+
+  const currentStory = selectedIndex !== null ? stories[selectedIndex] : null;
+
   return (
     <>
       <div style={{ display: 'flex', gap: '12px', paddingBottom: '12px', overflowX: 'auto', borderBottom: '1px solid rgba(255,255,255,0.1)', marginBottom: '12px' }}>
@@ -120,8 +144,8 @@ export default function StoriesBar({ token, usuario, API_URL }) {
         </label>
 
         {/* Lista de Stories (Últimas 24h) */}
-        {stories.map((s) => (
-          <div key={s.id} onClick={() => setSelectedStory(s)} style={{ textAlign: 'center', cursor: 'pointer', flexShrink: 0 }}>
+        {stories.map((s, index) => (
+          <div key={s.id} onClick={() => setSelectedIndex(index)} style={{ textAlign: 'center', cursor: 'pointer', flexShrink: 0 }}>
             <img
               src={s.avatar || DEFAULT_AVATAR}
               alt={s.username}
@@ -134,51 +158,86 @@ export default function StoriesBar({ token, usuario, API_URL }) {
         ))}
       </div>
 
-      {/* Modal de Visualização do Story Corrigido */}
-      {selectedStory && (
+      {/* Modal de Visualização com Navegação */}
+      {currentStory && (
         <div 
-          onClick={() => setSelectedStory(null)} 
+          onClick={() => setSelectedIndex(null)} 
           style={{ 
             position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, 
-            background: 'rgba(0,0,0,0.9)', display: 'flex', flexDirection: 'column', 
+            background: 'rgba(0,0,0,0.92)', display: 'flex', 
             alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: '20px' 
           }}
         >
           {/* Botão Fechar */}
           <button 
-            onClick={() => setSelectedStory(null)} 
+            onClick={() => setSelectedIndex(null)} 
             style={{ 
               position: 'absolute', top: '20px', right: '20px', background: 'transparent', 
-              border: 'none', color: '#fff', fontSize: '28px', cursor: 'pointer' 
+              border: 'none', color: '#fff', fontSize: '28px', cursor: 'pointer', zIndex: 100000 
             }}
           >
             ✕
           </button>
 
+          {/* Botão Voltar (Anterior) */}
+          {selectedIndex > 0 && (
+            <button
+              onClick={(e) => { e.stopPropagation(); proximoStory(-1); }}
+              style={{
+                position: 'absolute', left: '20px', top: '50%', transform: 'translateY(-50%)',
+                background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff',
+                fontSize: '24px', width: '45px', height: '45px', borderRadius: '50%',
+                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                transition: 'background 0.2s', zIndex: 100000
+              }}
+              title="Story anterior"
+            >
+              ❮
+            </button>
+          )}
+
+          {/* Conteúdo Central do Story */}
           <div onClick={(e) => e.stopPropagation()} style={{ textAlign: 'center', maxWidth: '100%', maxHeight: '85vh' }}>
             <img 
-              src={selectedStory.image_url} 
+              src={currentStory.image_url} 
               alt="Story" 
               style={{ 
                 maxWidth: '90vw', 
                 maxHeight: '75vh', 
                 borderRadius: '12px', 
                 objectFit: 'contain',
-                boxShadow: '0px 4px 20px rgba(0,0,0,0.5)',
+                boxShadow: '0px 4px 20px rgba(0,0,0,0.6)',
                 background: '#111'
               }} 
             />
             <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
               <img 
-                src={selectedStory.avatar || DEFAULT_AVATAR} 
-                alt={selectedStory.username} 
+                src={currentStory.avatar || DEFAULT_AVATAR} 
+                alt={currentStory.username} 
                 style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }} 
               />
               <span style={{ color: '#fff', fontWeight: 'bold', fontSize: '14px' }}>
-                @{selectedStory.username}
+                @{currentStory.username}
               </span>
             </div>
           </div>
+
+          {/* Botão Avançar (Próximo) */}
+          {selectedIndex < stories.length - 1 && (
+            <button
+              onClick={(e) => { e.stopPropagation(); proximoStory(1); }}
+              style={{
+                position: 'absolute', right: '20px', top: '50%', transform: 'translateY(-50%)',
+                background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff',
+                fontSize: '24px', width: '45px', height: '45px', borderRadius: '50%',
+                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                transition: 'background 0.2s', zIndex: 100000
+              }}
+              title="Próximo story"
+            >
+              ❯
+            </button>
+          )}
         </div>
       )}
     </>
