@@ -514,11 +514,11 @@ function App() {
     <div className="kaiowa-app-wrapper">
       <div className="kaiowa-container">
         
-        {/* ===================================================== */}
-        {/* CONTAINER FIXO (LOGO + STORIES + SEGUIDORES + BUSCA) */}
-        {/* ===================================================== */}
-        <div style={{ position: 'sticky', top: 0, zIndex: 1000, background: '#091c13', borderRadius: '0 0 16px 16px', marginBottom: '16px' }}>
-          <header className="kaiowa-header" style={{ marginBottom: 0 }}>
+        {/* ================================================================= */}
+        {/* BLOCO FIXO DO TOPO (HEADER + STORIES + SEGUIDORES + BUSCA)       */}
+        {/* ================================================================= */}
+        <div style={{ position: 'sticky', top: 0, zIndex: 1000, background: '#091c13', padding: '12px 16px', borderRadius: '0 0 16px 16px', boxShadow: '0 4px 12px rgba(0,0,0,0.4)' }}>
+          <header className="kaiowa-header" style={{ margin: 0, padding: 0 }}>
             <div className="logo-area">
               <img src="/logo-vazado.png" alt="Kaiowá Logo" className="kaiowa-logo-header" />
             </div>
@@ -583,14 +583,16 @@ function App() {
           </header>
 
           {usuario && (
-            <div className="profile-summary-card" style={{ marginTop: 0, boxShadow: 'none', background: 'transparent' }}>
+            <div style={{ marginTop: '12px' }}>
+              {/* STORIES INTEGRADO NO HEADER FIXO */}
               <StoriesBar token={token} usuario={usuario} API_URL={API_URL} />
               
-              <div className="stats-box">
+              <div className="stats-box" style={{ margin: '8px 0' }}>
                 <span><strong>{userStats.following_count}</strong> Seguindo</span>
                 <span><strong>{userStats.followers_count}</strong> Seguidores</span>
               </div>
-              <form onSubmit={handleFormBusca} className="search-user-box">
+
+              <form onSubmit={handleFormBusca} className="search-user-box" style={{ margin: 0 }}>
                 <input
                   type="text"
                   placeholder="Procurar utilizadores..."
@@ -704,7 +706,7 @@ function App() {
         )}
 
         {/* ===================================================== */}
-        {/* CONTEÚDO PRINCIPAL (DESLIZA E ROLA POR BAIXO DO TOPO)  */}
+        {/* CONTEÚDO PRINCIPAL QUE DESLIZA E ROLA POR BAIXO DO TOPO*/}
         {/* ===================================================== */}
         <main className="kaiowa-main">
           {!token ? (
