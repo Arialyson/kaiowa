@@ -515,10 +515,10 @@ function App() {
       <div className="kaiowa-container">
         
         {/* ===================================================== */}
-        {/* BLOCO FIXO DO TOPO (HEADER + STORIES + BUSCA)          */}
+        {/* CONTAINER FIXO (LOGO + STORIES + SEGUIDORES + BUSCA) */}
         {/* ===================================================== */}
-        <div style={{ position: 'sticky', top: 0, zIndex: 100, background: '#091c13', paddingBottom: '8px' }}>
-          <header className="kaiowa-header">
+        <div style={{ position: 'sticky', top: 0, zIndex: 1000, background: '#091c13', borderRadius: '0 0 16px 16px', marginBottom: '16px' }}>
+          <header className="kaiowa-header" style={{ marginBottom: 0 }}>
             <div className="logo-area">
               <img src="/logo-vazado.png" alt="Kaiowá Logo" className="kaiowa-logo-header" />
             </div>
@@ -583,7 +583,7 @@ function App() {
           </header>
 
           {usuario && (
-            <div className="profile-summary-card" style={{ marginTop: '0', borderRadius: '0 0 12px 12px' }}>
+            <div className="profile-summary-card" style={{ marginTop: 0, boxShadow: 'none', background: 'transparent' }}>
               <StoriesBar token={token} usuario={usuario} API_URL={API_URL} />
               
               <div className="stats-box">
@@ -704,7 +704,7 @@ function App() {
         )}
 
         {/* ===================================================== */}
-        {/* CONTEÚDO PRINCIPAL (FEED DE PUBLICAÇÕES QUE ROLA)      */}
+        {/* CONTEÚDO PRINCIPAL (DESLIZA E ROLA POR BAIXO DO TOPO)  */}
         {/* ===================================================== */}
         <main className="kaiowa-main">
           {!token ? (
