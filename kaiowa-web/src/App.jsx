@@ -258,6 +258,7 @@ function App() {
   const handleAuth = async (e) => {
     e.preventDefault();
     setErro('');
+    setLoadingAuth(true);
     try {
       if (isRegister) {
         await axios.post(`${API_URL}/users`, { username: username.trim(), email: email.trim(), password });
@@ -273,7 +274,9 @@ function App() {
       }
     } catch (err) {
       setErro(err.response?.data?.erro || 'Erro na operação.');
-    }
+    } finally {
+      setLoadingAuth(false); // <-- Desativa o spinner após a resposta da API
+  }
   };
 
   const handleLogout = () => {

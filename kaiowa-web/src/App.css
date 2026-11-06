@@ -688,19 +688,21 @@ input, textarea, select {
 }
 
 /* CARREGADOR EM SÍMBOLO (SPINNER GERAL E EM BOTÕES) */
+/* CARREGADOR EM SÍMBOLO (SPINNER GERAL E EM BOTÕES) */
 .spinner-btn {
   width: 18px;
   height: 18px;
-  border: 2px solid rgba(27, 59, 34, 0.3);
+  border: 2px solid rgba(255, 255, 255, 0.3);
   border-radius: 50%;
-  border-top-color: #1b3b22;
+  border-top-color: #ffffff;
   animation: spinBtn 0.7s linear infinite;
   display: inline-block;
+  vertical-align: middle;
 }
 
 .btn-social-primary .spinner-btn {
-  border: 2px solid rgba(27, 59, 34, 0.3);
-  border-top-color: #1b3b22;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #ffffff;
 }
 
 .btn-primary .spinner-btn {
