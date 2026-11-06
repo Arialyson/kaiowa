@@ -133,6 +133,32 @@ app.post('/login', async (req, res) => {
   }
 });
 
+// Rota pública para redefinição de senha ("Esqueci minha senha")
+app.post('/forgot-password', async (req, res) => {
+  const { email, newPassword } = req.body;
+
+  if (!email || !newPassword) {
+    return res.status(400).json({ erro: 'Informe o e-mail e a nova senha.' });
+  }
+
+  try {
+    const user = await db.get('SELECT * FROM users WHERE email = ?', [email.trim()]);
+    if (!user) {
+      return res.status(404).json({ erro: 'E-mail não encontrado.' });
+    }
+
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
+
+    await db.run('UPDATE users SET password = ? WHERE id = ?', [hashedPassword, user.id]);
+
+    res.json({ mensagem: 'Senha redefinida com sucesso!' });
+  } catch (err) {
+    console.error('Erro na redefinição de senha:', err);
+    res.status(500).json({ erro: 'Erro ao redefinir a senha.' });
+  }
+});
+
 app.post('/users/avatar', authenticateToken, upload.single('avatar'), async (req, res) => {
   if (!req.file) return res.status(400).json({ erro: 'Nenhuma imagem enviada.' });
 

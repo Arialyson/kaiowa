@@ -386,6 +386,9 @@ input, textarea, select {
   font-weight: 700;
   cursor: pointer;
   transition: background-color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .btn-primary:hover {
@@ -588,6 +591,23 @@ input, textarea, select {
   border-color: #8bc34a;
 }
 
+.btn-forgot-password {
+  background: transparent;
+  border: none;
+  color: #558b2f;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  align-self: flex-end;
+  margin-top: -4px;
+  transition: color 0.2s;
+}
+
+.btn-forgot-password:hover {
+  color: #1b3b22;
+  text-decoration: underline;
+}
+
 .error-message {
   color: #c62828;
   font-size: 0.85rem;
@@ -608,10 +628,19 @@ input, textarea, select {
   font-size: 0.95rem;
   cursor: pointer;
   transition: background-color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
 }
 
-.btn-social-primary:hover {
+.btn-social-primary:hover:not(:disabled) {
   background-color: #9ccc65;
+}
+
+.btn-social-primary:disabled {
+  opacity: 0.8;
+  cursor: not-allowed;
 }
 
 .auth-divider {
@@ -656,6 +685,33 @@ input, textarea, select {
 
 .btn-social-secondary:hover {
   background-color: #f0f4e8;
+}
+
+/* CARREGADOR EM SÍMBOLO (SPINNER GERAL E EM BOTÕES) */
+.spinner-btn {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(27, 59, 34, 0.3);
+  border-radius: 50%;
+  border-top-color: #1b3b22;
+  animation: spinBtn 0.7s linear infinite;
+  display: inline-block;
+}
+
+.btn-social-primary .spinner-btn {
+  border: 2px solid rgba(27, 59, 34, 0.3);
+  border-top-color: #1b3b22;
+}
+
+.btn-primary .spinner-btn {
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #ffffff;
+}
+
+@keyframes spinBtn {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* CAIXA DE CRIAÇÃO DE POST */
