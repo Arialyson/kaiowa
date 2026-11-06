@@ -621,7 +621,7 @@ function App() {
               color: '#666'
             }}
           >
-            {showPassword ? '👁️' : '🙈'}
+            {showPassword ? <IconEyeOff /> : <IconEye />}
           </button>
         </div>
 
@@ -731,7 +731,7 @@ function App() {
                       color: '#666'
                     }}
                   >
-                    {showPassword ? '👁️' : '🙈'}
+                    {showPassword ? <IconEyeOff /> : <IconEye />}
                   </button>
                 </div>
 
