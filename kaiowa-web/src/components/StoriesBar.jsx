@@ -147,7 +147,23 @@ export default function StoriesBar({ token, usuario, API_URL }) {
 
   return (
     <>
-      <div style={{ display: 'flex', gap: '12px', paddingBottom: '12px', overflowX: 'auto', borderBottom: '1px solid rgba(255,255,255,0.1)', marginBottom: '12px' }}>
+      {/* Container Fixado no Topo (Sticky) com fundo escuro contínuo */}
+      <div 
+        style={{ 
+          position: 'sticky', 
+          top: 0, 
+          zIndex: 100, 
+          background: '#0d1d15', // Cor verde-escura combinando com a barra superior
+          paddingTop: '12px',
+          paddingBottom: '12px',
+          marginBottom: '16px',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+          display: 'flex', 
+          gap: '12px', 
+          overflowX: 'auto' 
+        }}
+      >
         {/* Botão de Adicionar Story */}
         <label style={{ textAlign: 'center', cursor: enviando ? 'wait' : 'pointer', flexShrink: 0, opacity: enviando ? 0.6 : 1 }}>
           <div style={{
