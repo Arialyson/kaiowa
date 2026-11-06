@@ -886,6 +886,11 @@ function App() {
             )}
           </div>
         </main>
+        {/* Modal de redefinição de senha */}
+        <ForgotPasswordModal
+          isOpen={isForgotOpen}
+          onClose={() => setIsForgotOpen(false)}
+        />
       </div>
     </div>
   );
