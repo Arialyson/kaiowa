@@ -117,6 +117,7 @@ const IconTrash = () => (
     <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
   </svg>
 );
+
 const IconEye = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
@@ -292,8 +293,8 @@ function App() {
     } catch (err) {
       setErro(err.response?.data?.erro || 'Erro na operação.');
     } finally {
-      setLoadingAuth(false); // <-- Desativa o spinner após a resposta da API
-  }
+      setLoadingAuth(false);
+    }
   };
 
   const handleLogout = () => {
@@ -512,157 +513,83 @@ function App() {
   return (
     <div className="kaiowa-app-wrapper">
       <div className="kaiowa-container">
-        <header className="kaiowa-header">
-          <div className="logo-area">
-            <img src="/logo-vazado.png" alt="Kaiowá Logo" className="kaiowa-logo-header" />
-          </div>
-          {usuario && (
-            <div className="user-profile-bar">
-              <label htmlFor="avatar-upload" className="avatar-label" title="Alterar foto de perfil">
-                <img src={usuario.avatar || DEFAULT_AVATAR} alt="Avatar" className="user-avatar-header" />
-                <span className="avatar-overlay">📷</span>
-              </label>
-              <input
-                id="avatar-upload"
-                type="file"
-                accept="image/*"
-                onChange={handleUploadAvatar}
-                style={{ display: 'none' }}
-              />
-
-              <span className="user-name">@{usuario.username}</span>
-
-              <div className="notification-wrapper">
-                <button
-                  onClick={toggleNotificacoes}
-                  className={`btn-icon ${temNotificacaoNova ? 'bell-glowing' : ''}`}
-                  title="Notificações"
-                >
-                  🔔
-                  {temNotificacaoNova && <span className="beacon-glow"></span>}
-                </button>
-
-                {mostrarNotificacoes && (
-                  <div className="notifications-dropdown">
-                    <div className="notifications-header">
-                      <h4>🔔 Notificações</h4>
-                    </div>
-
-                    {notificacoes.length === 0 ? (
-                      <p className="no-notifications">Sem notificações recentes.</p>
-                    ) : (
-                      <div className="notifications-list">
-                        {notificacoes.map((n) => (
-                          <div key={n.id} className={`notification-item ${n.is_read === 0 ? 'unread' : ''}`}>
-                            <img src={n.actor_avatar || DEFAULT_AVATAR} alt="Avatar" className="comment-avatar" />
-                            <div className="notification-text">
-                              <strong>@{n.actor_username}</strong>{' '}
-                              {n.type === 'like' && 'curtiu o seu post.'}
-                              {n.type === 'comment' && 'comentou no seu post.'}
-                              {n.type === 'follow' && 'começou a seguir-te.'}
-                              <small>{new Date(n.created_at).toLocaleDateString()}</small>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <button onClick={() => setMostrarConfig(true)} className="btn-icon" title="Configurações">⚙️</button>
-              <button onClick={handleLogout} className="btn-logout">Sair</button>
-            </div>
-          )}
-        </header>
-
-        {mostrarConfig && (
-          <div className="modal-overlay" onClick={() => setMostrarConfig(false)}>
-            <div className="settings-modal" onClick={(e) => e.stopPropagation()}>
-              <div className="settings-header">
-                <h3>⚙️ Configurações da Conta</h3>
-                <button onClick={() => setMostrarConfig(false)} className="btn-close">✕</button>
-              </div>
-
-              {msgConfig && <div className="info-message">{msgConfig}</div>}
-
- <form onSubmit={handleAlterarSenha} className="settings-form">
-        <h4>Trocar Senha</h4>
         
-        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', marginBottom: '10px' }}>
-          <input
-            type={showPassword ? "text" : "password"}
-            placeholder="Senha Atual"
-            value={senhaAtual}
-            onChange={(e) => setSenhaAtual(e.target.value)}
-            required
-            style={{ width: '100%', paddingRight: '40px' }}
-          />
-          <button
-            type="button"
-            onClick={() => setShowPassword(!showPassword)}
-            style={{
-              position: 'absolute',
-              right: '10px',
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              fontSize: '16px',
-              color: '#666'
-            }}
-          >
-            {showPassword ? '👁️' : '🙈'}
-          </button>
-        </div>
-
-        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', marginBottom: '10px' }}>
-          <input
-            type={showPassword ? "text" : "password"}
-            placeholder="Nova Senha"
-            value={novaSenha}
-            onChange={(e) => setNovaSenha(e.target.value)}
-            required
-            style={{ width: '100%', paddingRight: '40px' }}
-          />
-          <button
-            type="button"
-            onClick={() => setShowPassword(!showPassword)}
-            style={{
-              position: 'absolute',
-              right: '10px',
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              fontSize: '16px',
-              color: '#666'
-            }}
-          >
-            {showPassword ? <IconEyeOff /> : <IconEye />}
-          </button>
-        </div>
-
-        <button type="submit" className="btn-primary">Atualizar Senha</button>
-      </form>
-
-              <div className="danger-zone">
-                <h4>Zona de Perigo</h4>
-                <button onClick={handleExcluirConta} className="btn-delete-account">
-                  🗑️ Excluir Minha Conta
-                </button>
-              </div>
+        {/* ===================================================== */}
+        {/* BLOCO FIXO DO TOPO (HEADER + STORIES + BUSCA)          */}
+        {/* ===================================================== */}
+        <div style={{ position: 'sticky', top: 0, zIndex: 100, background: '#091c13', paddingBottom: '8px' }}>
+          <header className="kaiowa-header">
+            <div className="logo-area">
+              <img src="/logo-vazado.png" alt="Kaiowá Logo" className="kaiowa-logo-header" />
             </div>
-          </div>
-        )}
+            {usuario && (
+              <div className="user-profile-bar">
+                <label htmlFor="avatar-upload" className="avatar-label" title="Alterar foto de perfil">
+                  <img src={usuario.avatar || DEFAULT_AVATAR} alt="Avatar" className="user-avatar-header" />
+                  <span className="avatar-overlay">📷</span>
+                </label>
+                <input
+                  id="avatar-upload"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleUploadAvatar}
+                  style={{ display: 'none' }}
+                />
 
-        <main className="kaiowa-main">
-         {usuario && (
-  <div className="profile-summary-card">
-    <StoriesBar token={token} usuario={usuario} API_URL={API_URL} />
-    
-    <div className="stats-box">
-      <span><strong>{userStats.following_count}</strong> Seguindo</span>
-      <span><strong>{userStats.followers_count}</strong> Seguidores</span>
-    </div>
+                <span className="user-name">@{usuario.username}</span>
+
+                <div className="notification-wrapper">
+                  <button
+                    onClick={toggleNotificacoes}
+                    className={`btn-icon ${temNotificacaoNova ? 'bell-glowing' : ''}`}
+                    title="Notificações"
+                  >
+                    🔔
+                    {temNotificacaoNova && <span className="beacon-glow"></span>}
+                  </button>
+
+                  {mostrarNotificacoes && (
+                    <div className="notifications-dropdown">
+                      <div className="notifications-header">
+                        <h4>🔔 Notificações</h4>
+                      </div>
+
+                      {notificacoes.length === 0 ? (
+                        <p className="no-notifications">Sem notificações recentes.</p>
+                      ) : (
+                        <div className="notifications-list">
+                          {notificacoes.map((n) => (
+                            <div key={n.id} className={`notification-item ${n.is_read === 0 ? 'unread' : ''}`}>
+                              <img src={n.actor_avatar || DEFAULT_AVATAR} alt="Avatar" className="comment-avatar" />
+                              <div className="notification-text">
+                                <strong>@{n.actor_username}</strong>{' '}
+                                {n.type === 'like' && 'curtiu o seu post.'}
+                                {n.type === 'comment' && 'comentou no seu post.'}
+                                {n.type === 'follow' && 'começou a seguir-te.'}
+                                <small>{new Date(n.created_at).toLocaleDateString()}</small>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <button onClick={() => setMostrarConfig(true)} className="btn-icon" title="Configurações">⚙️</button>
+                <button onClick={handleLogout} className="btn-logout">Sair</button>
+              </div>
+            )}
+          </header>
+
+          {usuario && (
+            <div className="profile-summary-card" style={{ marginTop: '0', borderRadius: '0 0 12px 12px' }}>
+              <StoriesBar token={token} usuario={usuario} API_URL={API_URL} />
+              
+              <div className="stats-box">
+                <span><strong>{userStats.following_count}</strong> Seguindo</span>
+                <span><strong>{userStats.followers_count}</strong> Seguidores</span>
+              </div>
               <form onSubmit={handleFormBusca} className="search-user-box">
                 <input
                   type="text"
@@ -696,7 +623,90 @@ function App() {
               )}
             </div>
           )}
+        </div>
 
+        {mostrarConfig && (
+          <div className="modal-overlay" onClick={() => setMostrarConfig(false)}>
+            <div className="settings-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="settings-header">
+                <h3>⚙️ Configurações da Conta</h3>
+                <button onClick={() => setMostrarConfig(false)} className="btn-close">✕</button>
+              </div>
+
+              {msgConfig && <div className="info-message">{msgConfig}</div>}
+
+              <form onSubmit={handleAlterarSenha} className="settings-form">
+                <h4>Trocar Senha</h4>
+                
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center', marginBottom: '10px' }}>
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Senha Atual"
+                    value={senhaAtual}
+                    onChange={(e) => setSenhaAtual(e.target.value)}
+                    required
+                    style={{ width: '100%', paddingRight: '40px' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    style={{
+                      position: 'absolute',
+                      right: '10px',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontSize: '16px',
+                      color: '#666'
+                    }}
+                  >
+                    {showPassword ? '👁️' : '🙈'}
+                  </button>
+                </div>
+
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center', marginBottom: '10px' }}>
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Nova Senha"
+                    value={novaSenha}
+                    onChange={(e) => setNovaSenha(e.target.value)}
+                    required
+                    style={{ width: '100%', paddingRight: '40px' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    style={{
+                      position: 'absolute',
+                      right: '10px',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontSize: '16px',
+                      color: '#666'
+                    }}
+                  >
+                    {showPassword ? <IconEyeOff /> : <IconEye />}
+                  </button>
+                </div>
+
+                <button type="submit" className="btn-primary">Atualizar Senha</button>
+              </form>
+
+              <div className="danger-zone">
+                <h4>Zona de Perigo</h4>
+                <button onClick={handleExcluirConta} className="btn-delete-account">
+                  🗑️ Excluir Minha Conta
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ===================================================== */}
+        {/* CONTEÚDO PRINCIPAL (FEED DE PUBLICAÇÕES QUE ROLA)      */}
+        {/* ===================================================== */}
+        <main className="kaiowa-main">
           {!token ? (
             <div className="auth-social-card">
               <div className="auth-social-brand">
@@ -706,27 +716,27 @@ function App() {
               </div>
 
               <form onSubmit={handleAuth} className="auth-social-form">
-              {isRegister && (
+                {isRegister && (
+                  <div className="input-field-social">
+                    <input
+                      type="text"
+                      placeholder="Nome de utilizador"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      required
+                    />
+                  </div>
+                )}
                 <div className="input-field-social">
                   <input
-                    type="text"
-                    placeholder="Nome de utilizador"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
+                    type="email"
+                    placeholder="E-mail"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     required
                   />
                 </div>
-              )}
-              <div className="input-field-social">
-                <input
-                  type="email"
-                  placeholder="E-mail"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="input-field-social" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <div className="input-field-social" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                   <input
                     type={showPassword ? "text" : "password"}
                     placeholder="Senha"
@@ -752,28 +762,26 @@ function App() {
                   </button>
                 </div>
 
-              {/* BOTÃO ESQUECEU A SENHA */}
-              {!isRegister && (
-                <button 
-                  type="button" 
-                  className="btn-forgot-password"
-                  onClick={() => setIsForgotOpen(true)}
-                >
-                  Esqueceu a senha?
-                </button>
-              )}
-
-              {erro && <div className="error-message">{erro}</div>}
-
-              {/* BOTÃO COM SPINNER */}
-              <button type="submit" className="btn-social-primary" disabled={loadingAuth}>
-                {loadingAuth ? (
-                  <span className="spinner-btn"></span>
-                ) : (
-                  isRegister ? 'Inscrever-se' : 'Entrar'
+                {!isRegister && (
+                  <button 
+                    type="button" 
+                    className="btn-forgot-password"
+                    onClick={() => setIsForgotOpen(true)}
+                  >
+                    Esqueceu a senha?
+                  </button>
                 )}
-              </button>
-            </form>
+
+                {erro && <div className="error-message">{erro}</div>}
+
+                <button type="submit" className="btn-social-primary" disabled={loadingAuth}>
+                  {loadingAuth ? (
+                    <span className="spinner-btn"></span>
+                  ) : (
+                    isRegister ? 'Inscrever-se' : 'Entrar'
+                  )}
+                </button>
+              </form>
               <div className="auth-divider">
                 <span>ou</span>
               </div>
@@ -959,7 +967,7 @@ function App() {
             )}
           </div>
         </main>
-        {/* Modal de redefinição de senha */}
+
         <ForgotPasswordModal
           isOpen={isForgotOpen}
           onClose={() => setIsForgotOpen(false)}

@@ -65,6 +65,7 @@ export default function StoriesBar({ token, usuario, API_URL }) {
     if (token) carregarStories();
   }, [token]);
 
+  // Suporte a navegação pelas setas do teclado e fechar com ESC
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (selectedIndex === null) return;
@@ -115,7 +116,7 @@ export default function StoriesBar({ token, usuario, API_URL }) {
   };
 
   const handleExcluirStory = async (storyId) => {
-    if (!window.confirm('Tem certeza que deseja excluir este story?')) return;
+    if (!window.confirm('Tem a certeza que deseja eliminar este story?')) return;
 
     setExcluindo(true);
     try {
@@ -126,8 +127,8 @@ export default function StoriesBar({ token, usuario, API_URL }) {
       setSelectedIndex(null);
       await carregarStories();
     } catch (err) {
-      console.error('Erro ao excluir story:', err);
-      alert(err.response?.data?.erro || 'Erro ao excluir story.');
+      console.error('Erro ao eliminar story:', err);
+      alert(err.response?.data?.erro || 'Erro ao eliminar story.');
     } finally {
       setExcluindo(false);
     }
@@ -147,21 +148,15 @@ export default function StoriesBar({ token, usuario, API_URL }) {
 
   return (
     <>
-      {/* Container Fixado no Topo (Sticky) com fundo escuro contínuo */}
+      {/* Container Fluido e Transparente da Barra de Stories */}
       <div 
         style={{ 
-          position: 'sticky', 
-          top: 0, 
-          zIndex: 100, 
-          background: '#0d1d15', // Cor verde-escura combinando com a barra superior
-          paddingTop: '12px',
-          paddingBottom: '12px',
-          marginBottom: '16px',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
           display: 'flex', 
           gap: '12px', 
-          overflowX: 'auto' 
+          paddingBottom: '12px', 
+          overflowX: 'auto', 
+          borderBottom: '1px solid rgba(255,255,255,0.1)', 
+          marginBottom: '12px' 
         }}
       >
         {/* Botão de Adicionar Story */}
@@ -174,12 +169,12 @@ export default function StoriesBar({ token, usuario, API_URL }) {
             {enviando ? '⌛' : '+'}
           </div>
           <span style={{ fontSize: '11px', color: '#ccc', marginTop: '4px', display: 'block' }}>
-            {enviando ? 'Enviando...' : 'Seu story'}
+            {enviando ? 'A enviar...' : 'Seu story'}
           </span>
           <input type="file" accept="image/*" onChange={handleUploadStory} disabled={enviando} style={{ display: 'none' }} />
         </label>
 
-        {/* Lista de Stories (Últimas 24h) */}
+        {/* Lista de Stories de Utilizadores (Últimas 24h) */}
         {stories.map((s, index) => (
           <div key={s.id} onClick={() => setSelectedIndex(index)} style={{ textAlign: 'center', cursor: 'pointer', flexShrink: 0 }}>
             <img
@@ -194,7 +189,7 @@ export default function StoriesBar({ token, usuario, API_URL }) {
         ))}
       </div>
 
-      {/* Modal de Visualização */}
+      {/* Modal de Visualização Fullscreen */}
       {currentStory && (
         <div 
           onClick={() => setSelectedIndex(null)} 
@@ -215,7 +210,7 @@ export default function StoriesBar({ token, usuario, API_URL }) {
             ✕
           </button>
 
-          {/* Botão Voltar */}
+          {/* Botão Voltar (Anterior) */}
           {selectedIndex > 0 && (
             <button
               onClick={(e) => { e.stopPropagation(); proximoStory(-1); }}
@@ -232,7 +227,7 @@ export default function StoriesBar({ token, usuario, API_URL }) {
             </button>
           )}
 
-          {/* Conteúdo Central */}
+          {/* Conteúdo Central do Story */}
           <div onClick={(e) => e.stopPropagation()} style={{ textAlign: 'center', maxWidth: '100%', maxHeight: '85vh', position: 'relative' }}>
             <img 
               src={currentStory.image_url} 
@@ -259,7 +254,7 @@ export default function StoriesBar({ token, usuario, API_URL }) {
                 </span>
               </div>
 
-              {/* Botão Excluir (Apenas para o proprietário) */}
+              {/* Botão Eliminar (Exclusivo para o Autor do Story) */}
               {ehDonoDoStory && (
                 <button
                   onClick={() => handleExcluirStory(currentStory.id)}
@@ -278,13 +273,13 @@ export default function StoriesBar({ token, usuario, API_URL }) {
                     gap: '4px'
                   }}
                 >
-                  🗑️ {excluindo ? 'Excluindo...' : 'Excluir'}
+                  🗑️ {excluindo ? 'A eliminar...' : 'Eliminar'}
                 </button>
               )}
             </div>
           </div>
 
-          {/* Botão Avançar */}
+          {/* Botão Avançar (Próximo) */}
           {selectedIndex < stories.length - 1 && (
             <button
               onClick={(e) => { e.stopPropagation(); proximoStory(1); }}
