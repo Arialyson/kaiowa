@@ -1,3 +1,5 @@
+// Adiciona a importação do modal junto dos teus outros imports:
+import ForgotPasswordModal from './components/ForgotPasswordModal';
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import heic2any from 'heic2any';
@@ -124,6 +126,9 @@ function App() {
       return null;
     }
   });
+  const [loadingAuth, setLoadingAuth] = useState(false);
+  const [isForgotOpen, setIsForgotOpen] = useState(false);
+  
   const [isRegister, setIsRegister] = useState(false);
 
   const [userStats, setUserStats] = useState({ followers_count: 0, following_count: 0 });
