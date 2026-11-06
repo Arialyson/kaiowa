@@ -4,7 +4,6 @@ import heic2any from 'heic2any';
 
 const DEFAULT_AVATAR = 'https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png';
 
-// Função de otimização e conversão de imagem para os Stories
 const processarFotoStory = async (file) => {
   let arquivo = file;
   const nomeLower = file.name.toLowerCase();
@@ -96,7 +95,7 @@ export default function StoriesBar({ token, usuario, API_URL }) {
       await carregarStories();
     } catch (err) {
       console.error('Detalhe do erro no upload do story:', err.response?.data || err.message);
-      alert(err.response?.data?.erro || 'Erro ao enviar story. Verifique a consola.');
+      alert(err.response?.data?.erro || 'Erro ao enviar story.');
     } finally {
       setEnviando(false);
     }
@@ -120,7 +119,7 @@ export default function StoriesBar({ token, usuario, API_URL }) {
           <input type="file" accept="image/*" onChange={handleUploadStory} disabled={enviando} style={{ display: 'none' }} />
         </label>
 
-        {/* Lista de Stories das últimas 24h */}
+        {/* Lista de Stories (Últimas 24h) */}
         {stories.map((s) => (
           <div key={s.id} onClick={() => setSelectedStory(s)} style={{ textAlign: 'center', cursor: 'pointer', flexShrink: 0 }}>
             <img
@@ -135,15 +134,50 @@ export default function StoriesBar({ token, usuario, API_URL }) {
         ))}
       </div>
 
-      {/* Modal para visualizar o Story */}
+      {/* Modal de Visualização do Story Corrigido */}
       {selectedStory && (
         <div 
           onClick={() => setSelectedStory(null)} 
-          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}
+          style={{ 
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, 
+            background: 'rgba(0,0,0,0.9)', display: 'flex', flexDirection: 'column', 
+            alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: '20px' 
+          }}
         >
-          <div style={{ position: 'relative', maxWidth: '90%', maxHeight: '80vh' }}>
-            <img src={selectedStory.image_url} alt="Story" style={{ maxHeight: '80vh', borderRadius: '12px', display: 'block' }} />
-            <p style={{ color: '#fff', textAlign: 'center', marginTop: '8px' }}>@{selectedStory.username}</p>
+          {/* Botão Fechar */}
+          <button 
+            onClick={() => setSelectedStory(null)} 
+            style={{ 
+              position: 'absolute', top: '20px', right: '20px', background: 'transparent', 
+              border: 'none', color: '#fff', fontSize: '28px', cursor: 'pointer' 
+            }}
+          >
+            ✕
+          </button>
+
+          <div onClick={(e) => e.stopPropagation()} style={{ textAlign: 'center', maxWidth: '100%', maxHeight: '85vh' }}>
+            <img 
+              src={selectedStory.image_url} 
+              alt="Story" 
+              style={{ 
+                maxWidth: '90vw', 
+                maxHeight: '75vh', 
+                borderRadius: '12px', 
+                objectFit: 'contain',
+                boxShadow: '0px 4px 20px rgba(0,0,0,0.5)',
+                background: '#111'
+              }} 
+            />
+            <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+              <img 
+                src={selectedStory.avatar || DEFAULT_AVATAR} 
+                alt={selectedStory.username} 
+                style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }} 
+              />
+              <span style={{ color: '#fff', fontWeight: 'bold', fontSize: '14px' }}>
+                @{selectedStory.username}
+              </span>
+            </div>
           </div>
         </div>
       )}
