@@ -194,6 +194,45 @@ app.post('/users/avatar', authenticateToken, upload.single('avatar'), async (req
   }
 });
 
+/**
+ * NOVA ROTA: Alterar Nome de Usuário (Username)
+ * Permite ao usuário logado modificar o seu nome de exibição/pesquisa.
+ */
+app.put('/users/username', authenticateToken, async (req, res) => {
+  const { novoUsername } = req.body;
+
+  if (!novoUsername || !novoUsername.trim()) {
+    return res.status(400).json({ erro: 'O novo nome de usuário não pode estar vazio.' });
+  }
+
+  const usernameLimpo = novoUsername.trim();
+
+  // Validação opcional: Impede espaços e caracteres especiais incompatíveis
+  const regexUsernameValido = /^[a-zA-Z0-9_.-]+$/;
+  if (!regexUsernameValido.test(usernameLimpo)) {
+    return res.status(400).json({ erro: 'O nome de usuário pode conter apenas letras, números, pontos e underlines (sem espaços).' });
+  }
+
+  try {
+    // 1. Verifica se o username já está a ser utilizado por outro utilizador
+    const existente = await db.get('SELECT id FROM users WHERE LOWER(username) = LOWER(?) AND id != ?', [usernameLimpo, req.user.id]);
+    if (existente) {
+      return res.status(400).json({ erro: 'Este nome de usuário já está em uso por outra conta.' });
+    }
+
+    // 2. Atualiza o username no banco de dados
+    await db.run('UPDATE users SET username = ? WHERE id = ?', [usernameLimpo, req.user.id]);
+
+    res.json({ 
+      mensagem: 'Nome de usuário alterado com sucesso!', 
+      novoUsername: usernameLimpo 
+    });
+  } catch (err) {
+    console.error('Erro ao alterar nome de usuário:', err);
+    res.status(500).json({ erro: 'Erro interno ao alterar o nome de usuário.' });
+  }
+});
+
 app.get('/users/search', authenticateToken, async (req, res) => {
   const q = req.query.q || '';
   const query = `

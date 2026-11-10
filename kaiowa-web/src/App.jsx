@@ -1,3 +1,6 @@
+// ==========================================
+// IMPORTAÇÕES DE COMPONENTES E BIBLIOTECAS
+// ==========================================
 import StoriesBar from './components/StoriesBar';
 import toast, { Toaster } from 'react-hot-toast';
 import { Eye, EyeOff } from 'lucide-react';
@@ -8,11 +11,21 @@ import EmojiPicker from 'emoji-picker-react';
 import ForgotPasswordModal from './components/ForgotPasswordModal';
 import './App.css';
 
+// Configuração da URL da API e Avatar Padrão
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 const DEFAULT_AVATAR = 'https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png';
 
+// Limite máximo de caracteres por postagem
 const MAX_CHAR_COUNT = 280;
 
+// ==========================================
+// FUNÇÕES AUXILIARES DE TRATAMENTO DE IMAGEM
+// ==========================================
+
+/**
+ * Processa imagens em formato HEIC/HEIF (comuns no iOS), converte para JPG
+ * e comprime antes de enviar para o servidor para economizar largura de banda.
+ */
 const processarEComprimirImagem = async (file, maxWidth = 1920, quality = 0.82) => {
   let arquivoParaProcessar = file;
 
@@ -84,6 +97,9 @@ const processarEComprimirImagem = async (file, maxWidth = 1920, quality = 0.82) 
   });
 };
 
+// ==========================================
+// COMPONENTES DE ÍCONES (SVG)
+// ==========================================
 const IconHeart = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l8.72-8.72 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
@@ -132,7 +148,11 @@ const IconEyeOff = () => (
   </svg>
 );
 
+// ==========================================
+// COMPONENTE PRINCIPAL (APP)
+// ==========================================
 function App() {
+  // Autenticação e Estados Globais
   const [showPassword, setShowPassword] = useState(false);
   const [token, setToken] = useState(localStorage.getItem('token') || '');
   const [usuario, setUsuario] = useState(() => {
@@ -145,24 +165,29 @@ function App() {
   });
   const [loadingAuth, setLoadingAuth] = useState(false);
   const [isForgotOpen, setIsForgotOpen] = useState(false);
-
   const [isRegister, setIsRegister] = useState(false);
-  
+
+  // Estatísticas de Seguidores/Seguindo
   const [userStats, setUserStats] = useState({ followers_count: 0, following_count: 0 });
 
+  // Pesquisa de Utilizadores
   const [termoBusca, setTermoBusca] = useState('');
   const [resultadosBusca, setResultadosBusca] = useState([]);
 
+  // Campos dos Formulários de Registro e Login
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [erro, setErro] = useState('');
 
+  // Estados das Configurações do Utilizador
   const [mostrarConfig, setMostrarConfig] = useState(false);
   const [senhaAtual, setSenhaAtual] = useState('');
   const [novaSenha, setNovaSenha] = useState('');
+  const [novoUsername, setNovoUsername] = useState(''); // NOVO ESTADO: Armazena o novo username inserido
   const [msgConfig, setMsgConfig] = useState('');
 
+  // Feed e Criação de Posts
   const [posts, setPosts] = useState([]);
   const [novoPost, setNovoPost] = useState('');
   const [imagemPost, setImagemPost] = useState(null);
@@ -170,13 +195,16 @@ function App() {
   const [comprimindo, setComprimindo] = useState(false);
   const [mostrarEmojis, setMostrarEmojis] = useState(false);
 
+  // Notificações
   const [notificacoes, setNotificacoes] = useState([]);
   const [mostrarNotificacoes, setMostrarNotificacoes] = useState(false);
 
+  // Comentários
   const [comentarioAberto, setComentarioAberto] = useState(null);
   const [comentarios, setComentarios] = useState({});
   const [novoComentario, setNovoComentario] = useState({});
 
+  // Efeito para carregar dados do utilizador e atualizar ciclicamente
   useEffect(() => {
     if (token) {
       carregarPosts();
@@ -185,6 +213,7 @@ function App() {
         carregarEstatisticas(usuario.id);
       }
 
+      // Intervalo de polling para atualizar notificações e feed a cada 3s
       const interval = setInterval(() => {
         carregarNotificacoes();
         carregarPosts();
@@ -197,6 +226,7 @@ function App() {
     }
   }, [token]);
 
+  // Carrega lista de postagens do backend
   const carregarPosts = async () => {
     try {
       const headers = { Authorization: `Bearer ${token}` };
@@ -209,6 +239,7 @@ function App() {
     }
   };
 
+  // Carrega notificações do utilizador
   const carregarNotificacoes = async () => {
     try {
       const headers = { Authorization: `Bearer ${token}` };
@@ -219,6 +250,7 @@ function App() {
     }
   };
 
+  // Alterna o dropdown de notificações e marca como lidas
   const toggleNotificacoes = async () => {
     const novoEstado = !mostrarNotificacoes;
     setMostrarNotificacoes(novoEstado);
@@ -234,6 +266,7 @@ function App() {
     }
   };
 
+  // Obtém o número de seguidores e seguindo
   const carregarEstatisticas = async (userId) => {
     if (!userId) return;
     try {
@@ -244,6 +277,7 @@ function App() {
     }
   };
 
+  // Pesquisa de utilizadores por termo
   const execBuscarUsuarios = async (query) => {
     if (!query || query.trim().length === 0) {
       setResultadosBusca([]);
@@ -273,6 +307,7 @@ function App() {
     }
   };
 
+  // Handler de Login e Cadastro
   const handleAuth = async (e) => {
     e.preventDefault();
     setErro('');
@@ -297,6 +332,7 @@ function App() {
     }
   };
 
+  // Termina a sessão do utilizador
   const handleLogout = () => {
     setToken('');
     setUsuario(null);
@@ -309,6 +345,7 @@ function App() {
     localStorage.clear();
   };
 
+  // Atualiza foto de perfil
   const handleUploadAvatar = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -334,6 +371,7 @@ function App() {
     }
   };
 
+  // Trata foto anexada a um novo post
   const handleSelecaoImagemPost = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -351,10 +389,36 @@ function App() {
     }
   };
 
+  // Insere emoji no texto do post
   const handleEmojiClick = (emojiData) => {
     setNovoPost((prev) => prev + emojiData.emoji);
   };
 
+  // NOVA FUNÇÃO: Altera o nome de utilizador (username)
+  const handleAlterarUsername = async (e) => {
+    e.preventDefault();
+    setMsgConfig('');
+    try {
+      const res = await axios.put(
+        `${API_URL}/users/username`,
+        { novoUsername },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setMsgConfig(res.data.mensagem);
+
+      // Atualiza o estado global e o localStorage
+      const usuarioAtualizado = { ...usuario, username: res.data.novoUsername };
+      setUsuario(usuarioAtualizado);
+      localStorage.setItem('usuario', JSON.stringify(usuarioAtualizado));
+      
+      setNovoUsername('');
+      carregarPosts(); // Recarrega os posts para atualizar o nome na tela
+    } catch (err) {
+      setMsgConfig(err.response?.data?.erro || 'Erro ao alterar nome de utilizador.');
+    }
+  };
+
+  // Altera a senha do utilizador
   const handleAlterarSenha = async (e) => {
     e.preventDefault();
     setMsgConfig('');
@@ -372,6 +436,7 @@ function App() {
     }
   };
 
+  // Elimina permanentemente a conta do utilizador
   const handleExcluirConta = async () => {
     const confirmacao = window.confirm(
       'ATENÇÃO: Deseja realmente excluir sua conta? Todas as suas postagens serão deletadas permanentemente.'
@@ -389,6 +454,7 @@ function App() {
     }
   };
 
+  // Seguir / Deixar de seguir utilizadores
   const handleSeguir = async (targetUserId) => {
     if (!token) return alert('Faça login para seguir usuários!');
     try {
@@ -407,6 +473,7 @@ function App() {
     }
   };
 
+  // Publica um novo post no feed
   const handleCriarPost = async (e) => {
     e.preventDefault();
     if (!novoPost.trim() && !imagemPost) return;
@@ -437,6 +504,7 @@ function App() {
     }
   };
 
+  // Curte ou descurte uma publicação
   const handleCurtir = async (postId) => {
     if (!token) return alert('Faça login para curtir!');
     try {
@@ -449,6 +517,7 @@ function App() {
     }
   };
 
+  // Abre caixa de comentários de um post
   const toggleComentarios = async (postId) => {
     if (comentarioAberto === postId) {
       setComentarioAberto(null);
@@ -459,6 +528,7 @@ function App() {
     }
   };
 
+  // Envia um comentário
   const handleEnviarComentario = async (postId) => {
     if (!token) return alert('Faça login!');
     const textoComentario = novoComentario[postId] || '';
@@ -479,6 +549,7 @@ function App() {
     }
   };
 
+  // Reage com emojis num comentário
   const handleReagirComentario = async (commentId, postId, emoji) => {
     if (!token) return alert('Faça login!');
     try {
@@ -497,6 +568,7 @@ function App() {
     }
   };
 
+  // Elimina um post do próprio utilizador
   const handleDeletarPost = async (postId) => {
     if (!window.confirm('Excluir este post?')) return;
     try {
@@ -515,7 +587,7 @@ function App() {
       <div className="kaiowa-container">
         
         {/* ===================================================================== */}
-        {/* BLOCO FIXO NATURAL (FIXA HEADER + PROFILE SUMMARY CARD DO DESIGN)     */}
+        {/* BLOCO FIXO DO TOPO (HEADER + PROFILE SUMMARY CARD)                   */}
         {/* ===================================================================== */}
         <div style={{ position: 'sticky', top: 0, zIndex: 1000, marginBottom: '16px' }}>
           <header className="kaiowa-header">
@@ -576,7 +648,7 @@ function App() {
                   )}
                 </div>
 
-                <button onClick={() => setMostrarConfig(true)} className="btn-icon" title="Configurações">⚙️</button>
+                <button onClick={() => { setMsgConfig(''); setMostrarConfig(true); }} className="btn-icon" title="Configurações">⚙️</button>
                 <button onClick={handleLogout} className="btn-logout">Sair</button>
               </div>
             )}
@@ -625,6 +697,9 @@ function App() {
           )}
         </div>
 
+        {/* ===================================================================== */}
+        {/* MODAL DE CONFIGURAÇÕES (INCLUI OPÇÃO DE NOME DE UTILIZADOR E SENHA)  */}
+        {/* ===================================================================== */}
         {mostrarConfig && (
           <div className="modal-overlay" onClick={() => setMostrarConfig(false)}>
             <div className="settings-modal" onClick={(e) => e.stopPropagation()}>
@@ -635,6 +710,23 @@ function App() {
 
               {msgConfig && <div className="info-message">{msgConfig}</div>}
 
+              {/* OPÇÃO 1: FORMULÁRIO DE ALTERAÇÃO DE USERNAME */}
+              <form onSubmit={handleAlterarUsername} className="settings-form" style={{ marginBottom: '24px' }}>
+                <h4>Alterar Nome de Utilizador</h4>
+                <div style={{ marginBottom: '10px' }}>
+                  <input
+                    type="text"
+                    placeholder={`Atual: @${usuario?.username}`}
+                    value={novoUsername}
+                    onChange={(e) => setNovoUsername(e.target.value)}
+                    required
+                    style={{ width: '100%' }}
+                  />
+                </div>
+                <button type="submit" className="btn-primary">Atualizar Utilizador</button>
+              </form>
+
+              {/* OPÇÃO 2: FORMULÁRIO DE ALTERAÇÃO DE SENHA */}
               <form onSubmit={handleAlterarSenha} className="settings-form">
                 <h4>Trocar Senha</h4>
                 
@@ -693,6 +785,7 @@ function App() {
                 <button type="submit" className="btn-primary">Atualizar Senha</button>
               </form>
 
+              {/* ZONA DE PERIGO DE CONTA */}
               <div className="danger-zone">
                 <h4>Zona de Perigo</h4>
                 <button onClick={handleExcluirConta} className="btn-delete-account">
@@ -704,7 +797,7 @@ function App() {
         )}
 
         {/* ===================================================== */}
-        {/* FEED PRINCIPAL QUE ROLA POR BAIXO DO TOPO              */}
+        {/* FEED PRINCIPAL DA APLICAÇÃO                            */}
         {/* ===================================================== */}
         <main className="kaiowa-main">
           {!token ? (
@@ -868,6 +961,7 @@ function App() {
             </div>
           )}
 
+          {/* LISTA DE POSTAGENS */}
           <div className="feed-container">
             <h3>Feed da Kaiowá</h3>
             {!token ? (
