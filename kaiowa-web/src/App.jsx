@@ -149,6 +149,58 @@ const IconEyeOff = () => (
 );
 
 // ==========================================
+// NOVO COMPONENTE: PLAYER DE VÍDEO NO FEED
+// ==========================================
+
+/**
+ * Analisa o texto da publicação. Se encontrar um link do YouTube (normal, youtu.be ou Shorts)
+ * ou um link direto de vídeo (.mp4 / .webm), renderiza um player responsivo embutido no feed.
+ */
+const RenderVideoEmbed = ({ text }) => {
+  if (!text) return null;
+
+  // Expressão regular para capturar o ID de 11 caracteres de vídeos do YouTube
+  const ytRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+  const ytMatch = text.match(ytRegex);
+
+  if (ytMatch && ytMatch[1]) {
+    const videoId = ytMatch[1];
+    return (
+      <div className="post-media" style={{ marginTop: '10px' }}>
+        <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, overflow: 'hidden', borderRadius: '12px', background: '#000' }}>
+          <iframe
+            src={`https://www.youtube.com/embed/${videoId}`}
+            title="YouTube video player"
+            frameBorder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // Expressão regular para capturar links diretos de vídeos (.mp4 ou .webm)
+  const mp4Regex = /(https?:\/\/[^\s]+\.(?:mp4|webm))/i;
+  const mp4Match = text.match(mp4Regex);
+
+  if (mp4Match && mp4Match[1]) {
+    return (
+      <div className="post-media" style={{ marginTop: '10px' }}>
+        <video
+          src={mp4Match[1]}
+          controls
+          style={{ width: '100%', maxHeight: '450px', borderRadius: '12px', background: '#000' }}
+        />
+      </div>
+    );
+  }
+
+  return null;
+};
+
+// ==========================================
 // COMPONENTE PRINCIPAL (APP)
 // ==========================================
 function App() {
@@ -184,7 +236,7 @@ function App() {
   const [mostrarConfig, setMostrarConfig] = useState(false);
   const [senhaAtual, setSenhaAtual] = useState('');
   const [novaSenha, setNovaSenha] = useState('');
-  const [novoUsername, setNovoUsername] = useState(''); // NOVO ESTADO: Armazena o novo username inserido
+  const [novoUsername, setNovoUsername] = useState('');
   const [msgConfig, setMsgConfig] = useState('');
 
   // Feed e Criação de Posts
@@ -394,7 +446,7 @@ function App() {
     setNovoPost((prev) => prev + emojiData.emoji);
   };
 
-  // NOVA FUNÇÃO: Altera o nome de utilizador (username)
+  // Altera o nome de utilizador (username)
   const handleAlterarUsername = async (e) => {
     e.preventDefault();
     setMsgConfig('');
@@ -899,7 +951,7 @@ function App() {
                 <div className="post-input-wrapper">
                   <img src={usuario?.avatar || DEFAULT_AVATAR} alt="Avatar" className="user-avatar-post" />
                   <textarea
-                    placeholder="O que está acontecendo?"
+                    placeholder="O que está acontecendo? (Cole links do YouTube para incorporar vídeos)"
                     value={novoPost}
                     onChange={(e) => setNovoPost(e.target.value)}
                     maxLength={MAX_CHAR_COUNT}
@@ -991,6 +1043,9 @@ function App() {
                   </div>
 
                   {post.content && <p className="post-content">{post.content}</p>}
+
+                  {/* RENDERIZAÇÃO AUTOMÁTICA DE VÍDEOS (YOUTUBE / MP4) */}
+                  <RenderVideoEmbed text={post.content} />
 
                   {post.image_url && (
                     <div className="post-media">
