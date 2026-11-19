@@ -195,8 +195,7 @@ app.post('/users/avatar', authenticateToken, upload.single('avatar'), async (req
 });
 
 /**
- * NOVA ROTA: Alterar Nome de Usuário (Username)
- * Permite ao usuário logado modificar o seu nome de exibição/pesquisa.
+ * ROTA: Alterar Nome de Usuário (Username)
  */
 app.put('/users/username', authenticateToken, async (req, res) => {
   const { novoUsername } = req.body;
@@ -207,20 +206,17 @@ app.put('/users/username', authenticateToken, async (req, res) => {
 
   const usernameLimpo = novoUsername.trim();
 
-  // Validação opcional: Impede espaços e caracteres especiais incompatíveis
   const regexUsernameValido = /^[a-zA-Z0-9_.-]+$/;
   if (!regexUsernameValido.test(usernameLimpo)) {
     return res.status(400).json({ erro: 'O nome de usuário pode conter apenas letras, números, pontos e underlines (sem espaços).' });
   }
 
   try {
-    // 1. Verifica se o username já está a ser utilizado por outro utilizador
     const existente = await db.get('SELECT id FROM users WHERE LOWER(username) = LOWER(?) AND id != ?', [usernameLimpo, req.user.id]);
     if (existente) {
       return res.status(400).json({ erro: 'Este nome de usuário já está em uso por outra conta.' });
     }
 
-    // 2. Atualiza o username no banco de dados
     await db.run('UPDATE users SET username = ? WHERE id = ?', [usernameLimpo, req.user.id]);
 
     res.json({ 
@@ -230,6 +226,84 @@ app.put('/users/username', authenticateToken, async (req, res) => {
   } catch (err) {
     console.error('Erro ao alterar nome de usuário:', err);
     res.status(500).json({ erro: 'Erro interno ao alterar o nome de usuário.' });
+  }
+});
+
+/**
+ * NOVA ROTA: Atualizar Biografia do Usuário
+ */
+app.put('/users/bio', authenticateToken, async (req, res) => {
+  try {
+    const bioLimpa = (req.body.bio || '').trim().slice(0, 160);
+    await db.run('UPDATE users SET bio = ? WHERE id = ?', [bioLimpa, req.user.id]);
+    res.json({ mensagem: 'Biografia atualizada com sucesso!', bio: bioLimpa });
+  } catch (err) {
+    console.error('Erro ao atualizar biografia:', err);
+    res.status(500).json({ erro: 'Erro ao atualizar biografia.' });
+  }
+});
+
+/**
+ * NOVA ROTA: Obter Página de Perfil Pública de um Usuário (/@username)
+ */
+app.get('/users/:username/profile', async (req, res) => {
+  try {
+    const usernameLimpo = decodeURIComponent(req.params.username).replace(/^@/, '').trim();
+
+    // Verifica se há um utilizador autenticado para saber se ele já segue ou curtiu os posts deste perfil
+    let currentUserId = 0;
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+    if (token) {
+      const loggedUser = await db.get('SELECT id FROM users WHERE token = ?', [token]);
+      if (loggedUser) currentUserId = loggedUser.id;
+    }
+
+    // 1. Busca os dados do perfil solicitado
+    const profileUser = await db.get(
+      'SELECT id, username, avatar, bio, created_at FROM users WHERE LOWER(username) = LOWER(?)',
+      [usernameLimpo]
+    );
+
+    if (!profileUser) {
+      return res.status(404).json({ erro: 'Utilizador não encontrado.' });
+    }
+
+    // 2. Busca estatísticas (seguidores, seguindo e se o visitante já segue)
+    const stats = await db.get(
+      `SELECT 
+        (SELECT COUNT(*) FROM follows WHERE following_id = ?) AS followers_count,
+        (SELECT COUNT(*) FROM follows WHERE follower_id = ?) AS following_count,
+        EXISTS(SELECT 1 FROM follows WHERE follower_id = ? AND following_id = ?) AS is_following`,
+      [profileUser.id, profileUser.id, currentUserId, profileUser.id]
+    );
+
+    // 3. Busca apenas as postagens deste utilizador
+    const posts = await db.query(
+      `SELECT posts.*, users.username, users.avatar,
+        (SELECT COUNT(*) FROM likes WHERE likes.post_id = posts.id) AS likes_count,
+        (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) AS comments_count,
+        EXISTS(SELECT 1 FROM likes WHERE likes.post_id = posts.id AND likes.user_id = ?) AS user_liked,
+        EXISTS(SELECT 1 FROM follows WHERE follower_id = ? AND following_id = posts.user_id) AS is_following
+      FROM posts
+      JOIN users ON posts.user_id = users.id
+      WHERE posts.user_id = ?
+      ORDER BY posts.created_at DESC`,
+      [currentUserId, currentUserId, profileUser.id]
+    );
+
+    res.json({
+      user: {
+        ...profileUser,
+        followers_count: stats?.followers_count || 0,
+        following_count: stats?.following_count || 0,
+        is_following: Boolean(stats?.is_following)
+      },
+      posts: posts || []
+    });
+  } catch (err) {
+    console.error('Erro ao carregar perfil:', err);
+    res.status(500).json({ erro: 'Erro interno ao carregar perfil.' });
   }
 });
 

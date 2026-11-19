@@ -149,17 +149,11 @@ const IconEyeOff = () => (
 );
 
 // ==========================================
-// NOVO COMPONENTE: PLAYER DE VÍDEO NO FEED
+// COMPONENTE: PLAYER DE VÍDEO NO FEED
 // ==========================================
-
-/**
- * Analisa o texto da publicação. Se encontrar um link do YouTube (normal, youtu.be ou Shorts)
- * ou um link direto de vídeo (.mp4 / .webm), renderiza um player responsivo embutido no feed.
- */
 const RenderVideoEmbed = ({ text }) => {
   if (!text) return null;
 
-  // Expressão regular para capturar o ID de 11 caracteres de vídeos do YouTube
   const ytRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
   const ytMatch = text.match(ytRegex);
 
@@ -181,7 +175,6 @@ const RenderVideoEmbed = ({ text }) => {
     );
   }
 
-  // Expressão regular para capturar links diretos de vídeos (.mp4 ou .webm)
   const mp4Regex = /(https?:\/\/[^\s]+\.(?:mp4|webm))/i;
   const mp4Match = text.match(mp4Regex);
 
@@ -219,6 +212,21 @@ function App() {
   const [isForgotOpen, setIsForgotOpen] = useState(false);
   const [isRegister, setIsRegister] = useState(false);
 
+  // ==========================================
+  // NAVEGAÇÃO POR PÁGINA DE PERFIL (/@username)
+  // ==========================================
+  const [perfilAtivoUsername, setPerfilAtivoUsername] = useState(() => {
+    const path = window.location.pathname;
+    if (path.startsWith('/@') && path.length > 2) {
+      return decodeURIComponent(path.slice(2));
+    }
+    return null;
+  });
+  const [dadosPerfil, setDadosPerfil] = useState(null);
+  const [postsPerfil, setPostsPerfil] = useState([]);
+  const [carregandoPerfil, setCarregandoPerfil] = useState(false);
+  const [erroPerfil, setErroPerfil] = useState('');
+
   // Estatísticas de Seguidores/Seguindo
   const [userStats, setUserStats] = useState({ followers_count: 0, following_count: 0 });
 
@@ -237,6 +245,7 @@ function App() {
   const [senhaAtual, setSenhaAtual] = useState('');
   const [novaSenha, setNovaSenha] = useState('');
   const [novoUsername, setNovoUsername] = useState('');
+  const [novaBio, setNovaBio] = useState(usuario?.bio || '');
   const [msgConfig, setMsgConfig] = useState('');
 
   // Feed e Criação de Posts
@@ -256,6 +265,29 @@ function App() {
   const [comentarios, setComentarios] = useState({});
   const [novoComentario, setNovoComentario] = useState({});
 
+  // Sincroniza botões Voltar/Avançar do navegador com o estado de perfil
+  useEffect(() => {
+    const handlePopState = () => {
+      const path = window.location.pathname;
+      if (path.startsWith('/@') && path.length > 2) {
+        setPerfilAtivoUsername(decodeURIComponent(path.slice(2)));
+      } else {
+        setPerfilAtivoUsername(null);
+        setDadosPerfil(null);
+        setErroPerfil('');
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Carrega os dados do perfil sempre que `perfilAtivoUsername` muda
+  useEffect(() => {
+    if (perfilAtivoUsername) {
+      carregarPerfilUsuario(perfilAtivoUsername, true);
+    }
+  }, [perfilAtivoUsername, token]);
+
   // Efeito para carregar dados do utilizador e atualizar ciclicamente
   useEffect(() => {
     if (token) {
@@ -265,10 +297,13 @@ function App() {
         carregarEstatisticas(usuario.id);
       }
 
-      // Intervalo de polling para atualizar notificações e feed a cada 3s
       const interval = setInterval(() => {
         carregarNotificacoes();
-        carregarPosts();
+        if (perfilAtivoUsername) {
+          carregarPerfilUsuario(perfilAtivoUsername, false);
+        } else {
+          carregarPosts();
+        }
       }, 3000);
 
       return () => clearInterval(interval);
@@ -276,7 +311,45 @@ function App() {
       setPosts([]);
       setNotificacoes([]);
     }
-  }, [token]);
+  }, [token, perfilAtivoUsername]);
+
+  // Navega para a página própria de um utilizador (/@username)
+  const abrirPerfil = (targetUsername) => {
+    if (!targetUsername) return;
+    const limpo = targetUsername.replace(/^@/, '');
+    window.history.pushState({}, '', `/@${encodeURIComponent(limpo)}`);
+    setPerfilAtivoUsername(limpo);
+    setResultadosBusca([]);
+    setTermoBusca('');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Retorna para o feed principal (/)
+  const voltarAoFeed = () => {
+    window.history.pushState({}, '', '/');
+    setPerfilAtivoUsername(null);
+    setDadosPerfil(null);
+    setErroPerfil('');
+    if (token) carregarPosts();
+  };
+
+  // Busca os dados e posts de um perfil específico
+  const carregarPerfilUsuario = async (targetUsername, showLoading = true) => {
+    if (showLoading) setCarregandoPerfil(true);
+    setErroPerfil('');
+    try {
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const res = await axios.get(`${API_URL}/users/${encodeURIComponent(targetUsername)}/profile`, { headers });
+      setDadosPerfil(res.data.user);
+      setPostsPerfil(res.data.posts || []);
+    } catch (err) {
+      setErroPerfil(err.response?.data?.erro || 'Utilizador não encontrado.');
+      setDadosPerfil(null);
+      setPostsPerfil([]);
+    } finally {
+      if (showLoading) setCarregandoPerfil(false);
+    }
+  };
 
   // Carrega lista de postagens do backend
   const carregarPosts = async () => {
@@ -373,6 +446,7 @@ function App() {
         const res = await axios.post(`${API_URL}/login`, { email: email.trim(), password });
         setToken(res.data.token);
         setUsuario(res.data.user);
+        setNovaBio(res.data.user.bio || '');
         localStorage.setItem('token', res.data.token);
         localStorage.setItem('usuario', JSON.stringify(res.data.user));
         carregarEstatisticas(res.data.user.id);
@@ -394,6 +468,7 @@ function App() {
     setTermoBusca('');
     setPosts([]);
     setNotificacoes([]);
+    voltarAoFeed();
     localStorage.clear();
   };
 
@@ -416,6 +491,7 @@ function App() {
       localStorage.setItem('usuario', JSON.stringify(usuarioAtualizado));
       alert('Foto de perfil atualizada!');
       carregarPosts();
+      if (perfilAtivoUsername) carregarPerfilUsuario(perfilAtivoUsername, false);
     } catch (err) {
       alert('Erro ao enviar avatar.');
     } finally {
@@ -446,6 +522,30 @@ function App() {
     setNovoPost((prev) => prev + emojiData.emoji);
   };
 
+  // Altera a biografia do utilizador
+  const handleAlterarBio = async (e) => {
+    e.preventDefault();
+    setMsgConfig('');
+    try {
+      const res = await axios.put(
+        `${API_URL}/users/bio`,
+        { bio: novaBio },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setMsgConfig(res.data.mensagem);
+
+      const usuarioAtualizado = { ...usuario, bio: res.data.bio };
+      setUsuario(usuarioAtualizado);
+      localStorage.setItem('usuario', JSON.stringify(usuarioAtualizado));
+
+      if (perfilAtivoUsername && perfilAtivoUsername.toLowerCase() === usuario.username.toLowerCase()) {
+        carregarPerfilUsuario(perfilAtivoUsername, false);
+      }
+    } catch (err) {
+      setMsgConfig(err.response?.data?.erro || 'Erro ao atualizar biografia.');
+    }
+  };
+
   // Altera o nome de utilizador (username)
   const handleAlterarUsername = async (e) => {
     e.preventDefault();
@@ -458,13 +558,17 @@ function App() {
       );
       setMsgConfig(res.data.mensagem);
 
-      // Atualiza o estado global e o localStorage
+      const nomeAntigo = usuario.username;
       const usuarioAtualizado = { ...usuario, username: res.data.novoUsername };
       setUsuario(usuarioAtualizado);
       localStorage.setItem('usuario', JSON.stringify(usuarioAtualizado));
       
       setNovoUsername('');
-      carregarPosts(); // Recarrega os posts para atualizar o nome na tela
+      carregarPosts();
+
+      if (perfilAtivoUsername && perfilAtivoUsername.toLowerCase() === nomeAntigo.toLowerCase()) {
+        abrirPerfil(res.data.novoUsername);
+      }
     } catch (err) {
       setMsgConfig(err.response?.data?.erro || 'Erro ao alterar nome de utilizador.');
     }
@@ -518,7 +622,7 @@ function App() {
 
       await carregarPosts();
       if (usuario && usuario.id) await carregarEstatisticas(usuario.id);
-
+      if (perfilAtivoUsername) await carregarPerfilUsuario(perfilAtivoUsername, false);
       if (termoBusca) execBuscarUsuarios(termoBusca);
     } catch (err) {
       alert(err.response?.data?.erro || 'Erro ao seguir.');
@@ -547,6 +651,7 @@ function App() {
       setPreviewImagem('');
       setMostrarEmojis(false);
       carregarPosts();
+      if (perfilAtivoUsername) carregarPerfilUsuario(perfilAtivoUsername, false);
     } catch (err) {
       const erroServidor = err.response?.data?.erro || err.response?.data?.message || err.message;
       alert(`Erro ao publicar post: ${erroServidor}`);
@@ -563,6 +668,7 @@ function App() {
       const headers = { Authorization: `Bearer ${token}` };
       await axios.post(`${API_URL}/likes`, { post_id: Number(postId) }, { headers });
       carregarPosts();
+      if (perfilAtivoUsername) carregarPerfilUsuario(perfilAtivoUsername, false);
     } catch (err) {
       console.error('Erro ao curtir post:', err);
       alert(err.response?.data?.erro || 'Erro ao processar a curtida.');
@@ -596,6 +702,7 @@ function App() {
       const res = await axios.get(`${API_URL}/posts/${postId}/comments`);
       setComentarios((prev) => ({ ...prev, [postId]: res.data }));
       carregarPosts();
+      if (perfilAtivoUsername) carregarPerfilUsuario(perfilAtivoUsername, false);
     } catch (err) {
       alert('Erro ao enviar comentário.');
     }
@@ -626,10 +733,128 @@ function App() {
     try {
       await axios.delete(`${API_URL}/posts/${postId}`, { headers: { Authorization: `Bearer ${token}` } });
       carregarPosts();
+      if (perfilAtivoUsername) carregarPerfilUsuario(perfilAtivoUsername, false);
     } catch (err) {
       alert('Erro ao deletar post.');
     }
   };
+
+  // Função reutilizável para renderizar cada cartão de post (tanto no feed geral quanto no perfil)
+  const renderPostCard = (post) => (
+    <div key={post.id} className="post-card">
+      <div className="post-card-header">
+        <img
+          src={post.avatar || DEFAULT_AVATAR}
+          alt="Avatar"
+          className="post-avatar"
+          onClick={() => abrirPerfil(post.username)}
+          style={{ cursor: 'pointer' }}
+          title={`Ver perfil de @${post.username}`}
+        />
+        <div className="post-user-info">
+          <div className="user-follow-line">
+            <strong
+              onClick={() => abrirPerfil(post.username)}
+              style={{ cursor: 'pointer' }}
+              title={`Ver perfil de @${post.username}`}
+            >
+              @{post.username}
+            </strong>
+            {usuario && usuario.id !== post.user_id && (
+              <button
+                onClick={() => handleSeguir(post.user_id)}
+                className={post.is_following ? 'btn-following' : 'btn-follow'}
+              >
+                {post.is_following ? 'Seguindo' : '+ Seguir'}
+              </button>
+            )}
+          </div>
+          <small>{new Date(post.created_at).toLocaleDateString()}</small>
+        </div>
+      </div>
+
+      {post.content && <p className="post-content">{post.content}</p>}
+
+      {/* RENDERIZAÇÃO AUTOMÁTICA DE VÍDEOS (YOUTUBE / MP4) */}
+      <RenderVideoEmbed text={post.content} />
+
+      {post.image_url && (
+        <div className="post-media">
+          <img src={post.image_url} alt="Mídia do post" className="post-image" />
+        </div>
+      )}
+
+      <div className="post-actions">
+        <button onClick={() => handleCurtir(post.id)} className={post.user_liked ? 'action-liked' : ''}>
+          <IconHeart /> {post.likes_count || 0}
+        </button>
+        <button onClick={() => toggleComentarios(post.id)}>
+          <IconMessage /> {post.comments_count || 0}
+        </button>
+
+        {usuario && usuario.username === post.username && (
+          <button onClick={() => handleDeletarPost(post.id)} className="btn-delete" title="Excluir post">
+            <IconTrash />
+          </button>
+        )}
+      </div>
+
+      {comentarioAberto === post.id && (
+        <div className="comments-section">
+          <div className="comments-list">
+            {(comentarios[post.id] || []).map((c) => (
+              <div key={c.id} className="comment-item">
+                <img
+                  src={c.avatar || DEFAULT_AVATAR}
+                  alt="Avatar"
+                  className="comment-avatar"
+                  onClick={() => abrirPerfil(c.username)}
+                  style={{ cursor: 'pointer' }}
+                />
+                <div className="comment-body">
+                  <strong
+                    onClick={() => abrirPerfil(c.username)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    @{c.username}
+                  </strong>
+                  <p>{c.content}</p>
+
+                  <div className="comment-reactions-bar">
+                    {['👍', '❤️', '🔥', '😂'].map((emoji) => {
+                      const rData = (c.reactions || []).find((r) => r.emoji === emoji);
+                      const count = rData ? rData.count : 0;
+                      return (
+                        <button
+                          key={emoji}
+                          onClick={() => handleReagirComentario(c.id, post.id, emoji)}
+                          className={`btn-reaction ${count > 0 ? 'active' : ''}`}
+                        >
+                          {emoji} {count > 0 && <span>{count}</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          {token && (
+            <div className="comment-input-box">
+              <input
+                type="text"
+                placeholder="Escreva um comentário e pressione Enter..."
+                value={novoComentario[post.id] || ''}
+                onChange={(e) => setNovoComentario({ ...novoComentario, [post.id]: e.target.value })}
+                onKeyDown={(e) => handleKeyDownComentario(e, post.id)}
+              />
+              <button onClick={() => handleEnviarComentario(post.id)}>Responder</button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
 
   const charsRestantes = MAX_CHAR_COUNT - novoPost.length;
   const temNotificacaoNova = notificacoes.some((n) => n.is_read === 0);
@@ -643,7 +868,12 @@ function App() {
         {/* ===================================================================== */}
         <div style={{ position: 'sticky', top: 0, zIndex: 1000, marginBottom: '16px' }}>
           <header className="kaiowa-header">
-            <div className="logo-area">
+            <div
+              className="logo-area"
+              onClick={voltarAoFeed}
+              style={{ cursor: 'pointer' }}
+              title="Voltar ao Feed Principal"
+            >
               <img src="/logo-vazado.png" alt="Kaiowá Logo" className="kaiowa-logo-header" />
             </div>
             {usuario && (
@@ -660,7 +890,14 @@ function App() {
                   style={{ display: 'none' }}
                 />
 
-                <span className="user-name">@{usuario.username}</span>
+                <span
+                  className="user-name"
+                  onClick={() => abrirPerfil(usuario.username)}
+                  style={{ cursor: 'pointer' }}
+                  title="Ver meu perfil"
+                >
+                  @{usuario.username}
+                </span>
 
                 <div className="notification-wrapper">
                   <button
@@ -683,7 +920,15 @@ function App() {
                       ) : (
                         <div className="notifications-list">
                           {notificacoes.map((n) => (
-                            <div key={n.id} className={`notification-item ${n.is_read === 0 ? 'unread' : ''}`}>
+                            <div
+                              key={n.id}
+                              className={`notification-item ${n.is_read === 0 ? 'unread' : ''}`}
+                              onClick={() => {
+                                setMostrarNotificacoes(false);
+                                abrirPerfil(n.actor_username);
+                              }}
+                              style={{ cursor: 'pointer' }}
+                            >
                               <img src={n.actor_avatar || DEFAULT_AVATAR} alt="Avatar" className="comment-avatar" />
                               <div className="notification-text">
                                 <strong>@{n.actor_username}</strong>{' '}
@@ -700,7 +945,17 @@ function App() {
                   )}
                 </div>
 
-                <button onClick={() => { setMsgConfig(''); setMostrarConfig(true); }} className="btn-icon" title="Configurações">⚙️</button>
+                <button
+                  onClick={() => {
+                    setMsgConfig('');
+                    setNovaBio(usuario?.bio || '');
+                    setMostrarConfig(true);
+                  }}
+                  className="btn-icon"
+                  title="Configurações"
+                >
+                  ⚙️
+                </button>
                 <button onClick={handleLogout} className="btn-logout">Sair</button>
               </div>
             )}
@@ -713,6 +968,12 @@ function App() {
               <div className="stats-box">
                 <span><strong>{userStats.following_count}</strong> Seguindo</span>
                 <span><strong>{userStats.followers_count}</strong> Seguidores</span>
+                <span
+                  onClick={() => abrirPerfil(usuario.username)}
+                  style={{ cursor: 'pointer', textDecoration: 'underline', marginLeft: 'auto', fontSize: '0.85rem' }}
+                >
+                  👤 Meu Perfil
+                </span>
               </div>
               <form onSubmit={handleFormBusca} className="search-user-box">
                 <input
@@ -728,7 +989,11 @@ function App() {
                 <div className="search-results-list">
                   {resultadosBusca.map((u) => (
                     <div key={u.id} className="search-user-item">
-                      <div className="user-info">
+                      <div
+                        className="user-info"
+                        onClick={() => abrirPerfil(u.username)}
+                        style={{ cursor: 'pointer' }}
+                      >
                         <img src={u.avatar || DEFAULT_AVATAR} alt="Avatar" className="comment-avatar" />
                         <div>
                           <strong>@{u.username}</strong>
@@ -750,11 +1015,11 @@ function App() {
         </div>
 
         {/* ===================================================================== */}
-        {/* MODAL DE CONFIGURAÇÕES (INCLUI OPÇÃO DE NOME DE UTILIZADOR E SENHA)  */}
+        {/* MODAL DE CONFIGURAÇÕES (BIOGRAFIA, USERNAME E SENHA)                  */}
         {/* ===================================================================== */}
         {mostrarConfig && (
           <div className="modal-overlay" onClick={() => setMostrarConfig(false)}>
-            <div className="settings-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="settings-modal" onClick={(e) => e.stopPropagation()} style={{ maxHeight: '85vh', overflowY: 'auto' }}>
               <div className="settings-header">
                 <h3>⚙️ Configurações da Conta</h3>
                 <button onClick={() => setMostrarConfig(false)} className="btn-close">✕</button>
@@ -762,7 +1027,23 @@ function App() {
 
               {msgConfig && <div className="info-message">{msgConfig}</div>}
 
-              {/* OPÇÃO 1: FORMULÁRIO DE ALTERAÇÃO DE USERNAME */}
+              {/* OPÇÃO 1: FORMULÁRIO DE BIOGRAFIA */}
+              <form onSubmit={handleAlterarBio} className="settings-form" style={{ marginBottom: '24px' }}>
+                <h4>Biografia do Perfil ({novaBio.length}/160)</h4>
+                <div style={{ marginBottom: '10px' }}>
+                  <textarea
+                    placeholder="Escreva uma breve apresentação sobre você..."
+                    value={novaBio}
+                    onChange={(e) => setNovaBio(e.target.value)}
+                    maxLength={160}
+                    rows="2"
+                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #ccc', resize: 'none' }}
+                  />
+                </div>
+                <button type="submit" className="btn-primary">Salvar Biografia</button>
+              </form>
+
+              {/* OPÇÃO 2: FORMULÁRIO DE ALTERAÇÃO DE USERNAME */}
               <form onSubmit={handleAlterarUsername} className="settings-form" style={{ marginBottom: '24px' }}>
                 <h4>Alterar Nome de Utilizador</h4>
                 <div style={{ marginBottom: '10px' }}>
@@ -778,7 +1059,7 @@ function App() {
                 <button type="submit" className="btn-primary">Atualizar Utilizador</button>
               </form>
 
-              {/* OPÇÃO 2: FORMULÁRIO DE ALTERAÇÃO DE SENHA */}
+              {/* OPÇÃO 3: FORMULÁRIO DE ALTERAÇÃO DE SENHA */}
               <form onSubmit={handleAlterarSenha} className="settings-form">
                 <h4>Trocar Senha</h4>
                 
@@ -849,272 +1130,336 @@ function App() {
         )}
 
         {/* ===================================================== */}
-        {/* FEED PRINCIPAL DA APLICAÇÃO                            */}
+        {/* CONTEÚDO PRINCIPAL: PÁGINA DE PERFIL OU FEED GERAL    */}
         {/* ===================================================== */}
         <main className="kaiowa-main">
-          {!token ? (
-            <div className="auth-social-card">
-              <div className="auth-social-brand">
-                <img src="/logo-vazado.png" alt="Kaiowá" className="auth-social-logo" />
-                <h2>O que está acontecendo agora</h2>
-                <p className="auth-social-subtitle">Junte-se à comunidade Kaiowá hoje mesmo.</p>
-              </div>
-
-              <form onSubmit={handleAuth} className="auth-social-form">
-                {isRegister && (
-                  <div className="input-field-social">
-                    <input
-                      type="text"
-                      placeholder="Nome de utilizador"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      required
-                    />
-                  </div>
-                )}
-                <div className="input-field-social">
-                  <input
-                    type="email"
-                    placeholder="E-mail"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="input-field-social" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Senha"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    style={{ width: '100%', paddingRight: '40px' }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    style={{
-                      position: 'absolute',
-                      right: '10px',
-                      background: 'none',
-                      border: 'none',
-                      cursor: 'pointer',
-                      fontSize: '16px',
-                      color: '#666'
-                    }}
-                  >
-                    {showPassword ? <IconEyeOff /> : <IconEye />}
-                  </button>
-                </div>
-
-                {!isRegister && (
-                  <button 
-                    type="button" 
-                    className="btn-forgot-password"
-                    onClick={() => setIsForgotOpen(true)}
-                  >
-                    Esqueceu a senha?
-                  </button>
-                )}
-
-                {erro && <div className="error-message">{erro}</div>}
-
-                <button type="submit" className="btn-social-primary" disabled={loadingAuth}>
-                  {loadingAuth ? (
-                    <span className="spinner-btn"></span>
-                  ) : (
-                    isRegister ? 'Inscrever-se' : 'Entrar'
-                  )}
-                </button>
-              </form>
-              <div className="auth-divider">
-                <span>ou</span>
-              </div>
-
-              <div className="auth-social-footer">
-                <p>{isRegister ? 'Já tem uma conta?' : 'Não tem uma conta?'}</p>
+          {perfilAtivoUsername ? (
+            /* ------------------------------------------------- */
+            /* VISUALIZAÇÃO DA PÁGINA PRÓPRIA DO UTILIZADOR      */
+            /* ------------------------------------------------- */
+            <div className="feed-container">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
                 <button
-                  type="button"
-                  className="btn-social-secondary"
-                  onClick={() => {
-                    setIsRegister(!isRegister);
-                    setErro('');
-                  }}
+                  onClick={voltarAoFeed}
+                  className="btn-follow"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                 >
-                  {isRegister ? 'Entrar' : 'Criar conta'}
+                  ← Voltar ao Feed
                 </button>
+                <small style={{ opacity: 0.75 }}>kaiowa-flame.vercel.app/@{perfilAtivoUsername}</small>
               </div>
+
+              {carregandoPerfil ? (
+                <div className="post-card" style={{ textAlign: 'center', padding: '30px' }}>
+                  Carregando perfil...
+                </div>
+              ) : erroPerfil ? (
+                <div className="post-card" style={{ textAlign: 'center', padding: '30px' }}>
+                  <strong>😕 {erroPerfil}</strong>
+                  <p style={{ marginTop: '8px' }}>Verifique se o nome de utilizador está correto.</p>
+                </div>
+              ) : dadosPerfil && (
+                <>
+                  {/* CARTÃO DO PERFIL INDIVIDUAL */}
+                  <div className="post-card" style={{ marginBottom: '20px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+                      <img
+                        src={dadosPerfil.avatar || DEFAULT_AVATAR}
+                        alt={dadosPerfil.username}
+                        style={{
+                          width: '76px',
+                          height: '76px',
+                          borderRadius: '50%',
+                          objectFit: 'cover',
+                          border: '3px solid #1b4332'
+                        }}
+                      />
+                      <div style={{ flex: 1, minWidth: '180px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
+                          <h3 style={{ margin: 0 }}>@{dadosPerfil.username}</h3>
+                          {usuario && usuario.id === dadosPerfil.id ? (
+                            <button
+                              onClick={() => {
+                                setMsgConfig('');
+                                setNovaBio(usuario?.bio || '');
+                                setMostrarConfig(true);
+                              }}
+                              className="btn-follow"
+                            >
+                              ✏️ Editar Perfil
+                            </button>
+                          ) : usuario ? (
+                            <button
+                              onClick={() => handleSeguir(dadosPerfil.id)}
+                              className={dadosPerfil.is_following ? 'btn-following' : 'btn-follow'}
+                            >
+                              {dadosPerfil.is_following ? 'Seguindo' : '+ Seguir'}
+                            </button>
+                          ) : null}
+                        </div>
+
+                        <small style={{ display: 'block', marginTop: '4px', opacity: 0.7 }}>
+                          Membro desde {new Date(dadosPerfil.created_at).toLocaleDateString()}
+                        </small>
+
+                        <p style={{ margin: '10px 0', fontSize: '0.95rem', lineHeight: '1.4' }}>
+                          {dadosPerfil.bio ? dadosPerfil.bio : <em style={{ opacity: 0.6 }}>Sem biografia definida.</em>}
+                        </p>
+
+                        <div style={{ display: 'flex', gap: '16px', fontSize: '0.9rem' }}>
+                          <span><strong>{dadosPerfil.following_count}</strong> Seguindo</span>
+                          <span><strong>{dadosPerfil.followers_count}</strong> Seguidores</span>
+                          <span><strong>{postsPerfil.length}</strong> Publicações</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* SE O VISITANTE ESTIVER NO PRÓPRIO PERFIL, PODE PUBLICAR DIRETO DELE */}
+                  {usuario && usuario.id === dadosPerfil.id && (
+                    <div className="post-create-box" style={{ marginBottom: '20px' }}>
+                      <form onSubmit={handleCriarPost}>
+                        <div className="post-input-wrapper">
+                          <img src={usuario?.avatar || DEFAULT_AVATAR} alt="Avatar" className="user-avatar-post" />
+                          <textarea
+                            placeholder="Publique algo no seu perfil..."
+                            value={novoPost}
+                            onChange={(e) => setNovoPost(e.target.value)}
+                            maxLength={MAX_CHAR_COUNT}
+                            rows="3"
+                          />
+                        </div>
+
+                        {previewImagem && (
+                          <div className="image-preview-container">
+                            <img src={previewImagem} alt="Pré-visualização" className="image-preview" />
+                            <button type="button" className="btn-remove-preview" onClick={() => { setImagemPost(null); setPreviewImagem(''); }}>✕</button>
+                          </div>
+                        )}
+
+                        <div className="post-form-footer">
+                          <div className="post-form-actions">
+                            <label htmlFor="post-image-upload-profile" className="btn-attach-image">
+                              <IconImage /> {comprimindo ? 'Carregando...' : 'Adicionar Foto'}
+                            </label>
+                            <input
+                              id="post-image-upload-profile"
+                              type="file"
+                              accept="image/*"
+                              onChange={handleSelecaoImagemPost}
+                              style={{ display: 'none' }}
+                            />
+                          </div>
+
+                          <div className="post-footer-right">
+                            <span className={`char-counter ${charsRestantes < 20 ? 'warning' : ''}`}>
+                              {charsRestantes}
+                            </span>
+                            <button
+                              type="submit"
+                              className="btn-publish-pill"
+                              disabled={(!novoPost.trim() && !imagemPost) || charsRestantes < 0 || comprimindo}
+                            >
+                              <IconSend /> Publicar
+                            </button>
+                          </div>
+                        </div>
+                      </form>
+                    </div>
+                  )}
+
+                  {/* LISTA DE POSTAGENS EXCLUSIVAS DESTE UTILIZADOR */}
+                  <h3>Publicações de @{dadosPerfil.username}</h3>
+                  {postsPerfil.length === 0 ? (
+                    <div className="post-card" style={{ textAlign: 'center', opacity: 0.75 }}>
+                      Este utilizador ainda não fez nenhuma publicação.
+                    </div>
+                  ) : (
+                    postsPerfil.map((post) => renderPostCard(post))
+                  )}
+                </>
+              )}
             </div>
           ) : (
-            <div className="post-create-box">
-              <form onSubmit={handleCriarPost}>
-                <div className="post-input-wrapper">
-                  <img src={usuario?.avatar || DEFAULT_AVATAR} alt="Avatar" className="user-avatar-post" />
-                  <textarea
-                    placeholder="O que está acontecendo? (Cole links do YouTube para incorporar vídeos)"
-                    value={novoPost}
-                    onChange={(e) => setNovoPost(e.target.value)}
-                    maxLength={MAX_CHAR_COUNT}
-                    rows="3"
-                  />
-                </div>
-
-                {previewImagem && (
-                  <div className="image-preview-container">
-                    <img src={previewImagem} alt="Pré-visualização" className="image-preview" />
-                    <button type="button" className="btn-remove-preview" onClick={() => { setImagemPost(null); setPreviewImagem(''); }}>✕</button>
+            /* ------------------------------------------------- */
+            /* VISUALIZAÇÃO PADRÃO DO FEED PRINCIPAL             */
+            /* ------------------------------------------------- */
+            <>
+              {!token ? (
+                <div className="auth-social-card">
+                  <div className="auth-social-brand">
+                    <img src="/logo-vazado.png" alt="Kaiowá" className="auth-social-logo" />
+                    <h2>O que está acontecendo agora</h2>
+                    <p className="auth-social-subtitle">Junte-se à comunidade Kaiowá hoje mesmo.</p>
                   </div>
-                )}
 
-                <div className="post-form-footer">
-                  <div className="post-form-actions">
-                    <label htmlFor="post-image-upload" className="btn-attach-image">
-                      <IconImage /> {comprimindo ? 'Carregando...' : 'Adicionar Foto'}
-                    </label>
-                    <input
-                      id="post-image-upload"
-                      type="file"
-                      accept="image/*"
-                      onChange={handleSelecaoImagemPost}
-                      style={{ display: 'none' }}
-                    />
-
-                    <div className="emoji-picker-container">
+                  <form onSubmit={handleAuth} className="auth-social-form">
+                    {isRegister && (
+                      <div className="input-field-social">
+                        <input
+                          type="text"
+                          placeholder="Nome de utilizador"
+                          value={username}
+                          onChange={(e) => setUsername(e.target.value)}
+                          required
+                        />
+                      </div>
+                    )}
+                    <div className="input-field-social">
+                      <input
+                        type="email"
+                        placeholder="E-mail"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="input-field-social" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Senha"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                        style={{ width: '100%', paddingRight: '40px' }}
+                      />
                       <button
                         type="button"
-                        className="btn-attach-image"
-                        onClick={() => setMostrarEmojis(!mostrarEmojis)}
+                        onClick={() => setShowPassword(!showPassword)}
+                        style={{
+                          position: 'absolute',
+                          right: '10px',
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          fontSize: '16px',
+                          color: '#666'
+                        }}
                       >
-                        😊 Emoji
+                        {showPassword ? <IconEyeOff /> : <IconEye />}
                       </button>
-
-                      {mostrarEmojis && (
-                        <div className="emoji-popover">
-                          <EmojiPicker onEmojiClick={handleEmojiClick} width={300} height={380} />
-                        </div>
-                      )}
                     </div>
-                  </div>
 
-                  <div className="post-footer-right">
-                    <span className={`char-counter ${charsRestantes < 20 ? 'warning' : ''}`}>
-                      {charsRestantes}
-                    </span>
-                    <button
-                      type="submit"
-                      className="btn-publish-pill"
-                      disabled={(!novoPost.trim() && !imagemPost) || charsRestantes < 0 || comprimindo}
-                    >
-                      <IconSend /> Publicar
-                    </button>
-                  </div>
-                </div>
-              </form>
-            </div>
-          )}
-
-          {/* LISTA DE POSTAGENS */}
-          <div className="feed-container">
-            <h3>Feed da Kaiowá</h3>
-            {!token ? (
-              <div className="login-required-card">
-                🔒 <strong>Conteúdo Exclusivo da Comunidade</strong>
-                <p>Faça login ou crie sua conta para ver as publicações do feed.</p>
-              </div>
-            ) : (
-              posts.map((post) => (
-                <div key={post.id} className="post-card">
-                  <div className="post-card-header">
-                    <img src={post.avatar || DEFAULT_AVATAR} alt="Avatar" className="post-avatar" />
-                    <div className="post-user-info">
-                      <div className="user-follow-line">
-                        <strong>@{post.username}</strong>
-                        {usuario && usuario.id !== post.user_id && (
-                          <button
-                            onClick={() => handleSeguir(post.user_id)}
-                            className={post.is_following ? 'btn-following' : 'btn-follow'}
-                          >
-                            {post.is_following ? 'Seguindo' : '+ Seguir'}
-                          </button>
-                        )}
-                      </div>
-                      <small>{new Date(post.created_at).toLocaleDateString()}</small>
-                    </div>
-                  </div>
-
-                  {post.content && <p className="post-content">{post.content}</p>}
-
-                  {/* RENDERIZAÇÃO AUTOMÁTICA DE VÍDEOS (YOUTUBE / MP4) */}
-                  <RenderVideoEmbed text={post.content} />
-
-                  {post.image_url && (
-                    <div className="post-media">
-                      <img src={post.image_url} alt="Mídia do post" className="post-image" />
-                    </div>
-                  )}
-
-                  <div className="post-actions">
-                    <button onClick={() => handleCurtir(post.id)} className={post.user_liked ? 'action-liked' : ''}>
-                      <IconHeart /> {post.likes_count || 0}
-                    </button>
-                    <button onClick={() => toggleComentarios(post.id)}>
-                      <IconMessage /> {post.comments_count || 0}
-                    </button>
-
-                    {usuario && usuario.username === post.username && (
-                      <button onClick={() => handleDeletarPost(post.id)} className="btn-delete" title="Excluir post">
-                        <IconTrash />
+                    {!isRegister && (
+                      <button 
+                        type="button" 
+                        className="btn-forgot-password"
+                        onClick={() => setIsForgotOpen(true)}
+                      >
+                        Esqueceu a senha?
                       </button>
                     )}
+
+                    {erro && <div className="error-message">{erro}</div>}
+
+                    <button type="submit" className="btn-social-primary" disabled={loadingAuth}>
+                      {loadingAuth ? (
+                        <span className="spinner-btn"></span>
+                      ) : (
+                        isRegister ? 'Inscrever-se' : 'Entrar'
+                      )}
+                    </button>
+                  </form>
+                  <div className="auth-divider">
+                    <span>ou</span>
                   </div>
 
-                  {comentarioAberto === post.id && (
-                    <div className="comments-section">
-                      <div className="comments-list">
-                        {(comentarios[post.id] || []).map((c) => (
-                          <div key={c.id} className="comment-item">
-                            <img src={c.avatar || DEFAULT_AVATAR} alt="Avatar" className="comment-avatar" />
-                            <div className="comment-body">
-                              <strong>@{c.username}</strong>
-                              <p>{c.content}</p>
-
-                              <div className="comment-reactions-bar">
-                                {['👍', '❤️', '🔥', '😂'].map((emoji) => {
-                                  const rData = (c.reactions || []).find((r) => r.emoji === emoji);
-                                  const count = rData ? rData.count : 0;
-                                  return (
-                                    <button
-                                      key={emoji}
-                                      onClick={() => handleReagirComentario(c.id, post.id, emoji)}
-                                      className={`btn-reaction ${count > 0 ? 'active' : ''}`}
-                                    >
-                                      {emoji} {count > 0 && <span>{count}</span>}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                      {token && (
-                        <div className="comment-input-box">
-                          <input
-                            type="text"
-                            placeholder="Escreva um comentário e pressione Enter..."
-                            value={novoComentario[post.id] || ''}
-                            onChange={(e) => setNovoComentario({ ...novoComentario, [post.id]: e.target.value })}
-                            onKeyDown={(e) => handleKeyDownComentario(e, post.id)}
-                          />
-                          <button onClick={() => handleEnviarComentario(post.id)}>Responder</button>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                  <div className="auth-social-footer">
+                    <p>{isRegister ? 'Já tem uma conta?' : 'Não tem uma conta?'}</p>
+                    <button
+                      type="button"
+                      className="btn-social-secondary"
+                      onClick={() => {
+                        setIsRegister(!isRegister);
+                        setErro('');
+                      }}
+                    >
+                      {isRegister ? 'Entrar' : 'Criar conta'}
+                    </button>
+                  </div>
                 </div>
-              ))
-            )}
-          </div>
+              ) : (
+                <div className="post-create-box">
+                  <form onSubmit={handleCriarPost}>
+                    <div className="post-input-wrapper">
+                      <img src={usuario?.avatar || DEFAULT_AVATAR} alt="Avatar" className="user-avatar-post" />
+                      <textarea
+                        placeholder="O que está acontecendo? (Cole links do YouTube para incorporar vídeos)"
+                        value={novoPost}
+                        onChange={(e) => setNovoPost(e.target.value)}
+                        maxLength={MAX_CHAR_COUNT}
+                        rows="3"
+                      />
+                    </div>
+
+                    {previewImagem && (
+                      <div className="image-preview-container">
+                        <img src={previewImagem} alt="Pré-visualização" className="image-preview" />
+                        <button type="button" className="btn-remove-preview" onClick={() => { setImagemPost(null); setPreviewImagem(''); }}>✕</button>
+                      </div>
+                    )}
+
+                    <div className="post-form-footer">
+                      <div className="post-form-actions">
+                        <label htmlFor="post-image-upload" className="btn-attach-image">
+                          <IconImage /> {comprimindo ? 'Carregando...' : 'Adicionar Foto'}
+                        </label>
+                        <input
+                          id="post-image-upload"
+                          type="file"
+                          accept="image/*"
+                          onChange={handleSelecaoImagemPost}
+                          style={{ display: 'none' }}
+                        />
+
+                        <div className="emoji-picker-container">
+                          <button
+                            type="button"
+                            className="btn-attach-image"
+                            onClick={() => setMostrarEmojis(!mostrarEmojis)}
+                          >
+                            😊 Emoji
+                          </button>
+
+                          {mostrarEmojis && (
+                            <div className="emoji-popover">
+                              <EmojiPicker onEmojiClick={handleEmojiClick} width={300} height={380} />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="post-footer-right">
+                        <span className={`char-counter ${charsRestantes < 20 ? 'warning' : ''}`}>
+                          {charsRestantes}
+                        </span>
+                        <button
+                          type="submit"
+                          className="btn-publish-pill"
+                          disabled={(!novoPost.trim() && !imagemPost) || charsRestantes < 0 || comprimindo}
+                        >
+                          <IconSend /> Publicar
+                        </button>
+                      </div>
+                    </div>
+                  </form>
+                </div>
+              )}
+
+              {/* LISTA DE POSTAGENS */}
+              <div className="feed-container">
+                <h3>Feed da Kaiowá</h3>
+                {!token ? (
+                  <div className="login-required-card">
+                    🔒 <strong>Conteúdo Exclusivo da Comunidade</strong>
+                    <p>Faça login ou crie sua conta para ver as publicações do feed.</p>
+                  </div>
+                ) : (
+                  posts.map((post) => renderPostCard(post))
+                )}
+              </div>
+            </>
+          )}
         </main>
 
         <ForgotPasswordModal
