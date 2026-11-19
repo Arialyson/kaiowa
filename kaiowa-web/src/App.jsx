@@ -227,6 +227,16 @@ function App() {
   const [carregandoPerfil, setCarregandoPerfil] = useState(false);
   const [erroPerfil, setErroPerfil] = useState('');
 
+  // ==========================================
+  // MODAL DE LISTA DE SEGUIDORES / SEGUINDO
+  // ==========================================
+  const [modalListaConexoes, setModalListaConexoes] = useState({
+    aberto: false,
+    titulo: '',
+    usuarios: [],
+    carregando: false
+  });
+
   // Estatísticas de Seguidores/Seguindo
   const [userStats, setUserStats] = useState({ followers_count: 0, following_count: 0 });
 
@@ -313,6 +323,22 @@ function App() {
     }
   }, [token, perfilAtivoUsername]);
 
+  // Abre o modal com a lista de Seguidores ou Seguindo de um utilizador
+  const abrirListaConexoes = async (targetUserId, targetUsername, tipo) => {
+    if (!targetUserId) return;
+    const titulo = tipo === 'followers' ? `Seguidores de @${targetUsername}` : `Quem @${targetUsername} segue`;
+    setModalListaConexoes({ aberto: true, titulo, usuarios: [], carregando: true });
+
+    try {
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const res = await axios.get(`${API_URL}/users/${targetUserId}/${tipo}`, { headers });
+      setModalListaConexoes({ aberto: true, titulo, usuarios: res.data || [], carregando: false });
+    } catch (err) {
+      console.error('Erro ao carregar conexões:', err);
+      setModalListaConexoes({ aberto: true, titulo, usuarios: [], carregando: false });
+    }
+  };
+
   // Navega para a página própria de um utilizador (/@username)
   const abrirPerfil = (targetUsername) => {
     if (!targetUsername) return;
@@ -321,6 +347,7 @@ function App() {
     setPerfilAtivoUsername(limpo);
     setResultadosBusca([]);
     setTermoBusca('');
+    setModalListaConexoes((prev) => ({ ...prev, aberto: false }));
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -624,6 +651,16 @@ function App() {
       if (usuario && usuario.id) await carregarEstatisticas(usuario.id);
       if (perfilAtivoUsername) await carregarPerfilUsuario(perfilAtivoUsername, false);
       if (termoBusca) execBuscarUsuarios(termoBusca);
+
+      // Atualiza também o estado de seguir dentro do modal de conexões caso esteja aberto
+      if (modalListaConexoes.aberto) {
+        setModalListaConexoes((prev) => ({
+          ...prev,
+          usuarios: prev.usuarios.map((u) =>
+            u.id === targetUserId ? { ...u, is_following: !u.is_following } : u
+          )
+        }));
+      }
     } catch (err) {
       alert(err.response?.data?.erro || 'Erro ao seguir.');
     }
@@ -966,8 +1003,20 @@ function App() {
               <StoriesBar token={token} usuario={usuario} API_URL={API_URL} />
               
               <div className="stats-box">
-                <span><strong>{userStats.following_count}</strong> Seguindo</span>
-                <span><strong>{userStats.followers_count}</strong> Seguidores</span>
+                <span
+                  onClick={() => abrirListaConexoes(usuario.id, usuario.username, 'following')}
+                  style={{ cursor: 'pointer' }}
+                  title="Ver quem você segue"
+                >
+                  <strong>{userStats.following_count}</strong> Seguindo
+                </span>
+                <span
+                  onClick={() => abrirListaConexoes(usuario.id, usuario.username, 'followers')}
+                  style={{ cursor: 'pointer' }}
+                  title="Ver seus seguidores"
+                >
+                  <strong>{userStats.followers_count}</strong> Seguidores
+                </span>
                 <span
                   onClick={() => abrirPerfil(usuario.username)}
                   style={{ cursor: 'pointer', textDecoration: 'underline', marginLeft: 'auto', fontSize: '0.85rem' }}
@@ -1013,6 +1062,78 @@ function App() {
             </div>
           )}
         </div>
+
+        {/* ===================================================================== */}
+        {/* MODAL DE LISTA DE SEGUIDORES / SEGUINDO                               */}
+        {/* ===================================================================== */}
+        {modalListaConexoes.aberto && (
+          <div
+            className="modal-overlay"
+            onClick={() => setModalListaConexoes((prev) => ({ ...prev, aberto: false }))}
+          >
+            <div
+              className="settings-modal"
+              onClick={(e) => e.stopPropagation()}
+              style={{ maxWidth: '420px', maxHeight: '80vh', overflowY: 'auto' }}
+            >
+              <div className="settings-header">
+                <h3>{modalListaConexoes.titulo}</h3>
+                <button
+                  onClick={() => setModalListaConexoes((prev) => ({ ...prev, aberto: false }))}
+                  className="btn-close"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {modalListaConexoes.carregando ? (
+                <p style={{ textAlign: 'center', padding: '20px' }}>Carregando lista...</p>
+              ) : modalListaConexoes.usuarios.length === 0 ? (
+                <p style={{ textAlign: 'center', padding: '20px', opacity: 0.7 }}>
+                  Nenhum utilizador encontrado nesta lista.
+                </p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '10px' }}>
+                  {modalListaConexoes.usuarios.map((u) => (
+                    <div
+                      key={u.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '8px 10px',
+                        borderRadius: '10px',
+                        backgroundColor: '#f8fbf9',
+                        border: '1px solid #e2ece6'
+                      }}
+                    >
+                      <div
+                        onClick={() => abrirPerfil(u.username)}
+                        style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}
+                      >
+                        <img
+                          src={u.avatar || DEFAULT_AVATAR}
+                          alt={u.username}
+                          style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }}
+                        />
+                        <strong>@{u.username}</strong>
+                      </div>
+
+                      {usuario && usuario.id !== u.id && (
+                        <button
+                          onClick={() => handleSeguir(u.id)}
+                          className={u.is_following ? 'btn-following' : 'btn-follow'}
+                        >
+                          {u.is_following ? 'Seguindo' : '+ Seguir'}
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* ===================================================================== */}
         {/* MODAL DE CONFIGURAÇÕES (BIOGRAFIA, USERNAME E SENHA)                  */}
@@ -1160,8 +1281,18 @@ function App() {
                 </div>
               ) : dadosPerfil && (
                 <>
-                  {/* CARTÃO DO PERFIL INDIVIDUAL */}
-                  <div className="post-card" style={{ marginBottom: '20px' }}>
+                  {/* CARTÃO DO PERFIL INDIVIDUAL COM CONTORNO DESTACADO */}
+                  <div
+                    className="post-card"
+                    style={{
+                      marginBottom: '24px',
+                      border: '2px solid #2d6a4f',
+                      borderTop: '6px solid #1b4332',
+                      backgroundColor: '#f8fbf9',
+                      boxShadow: '0 6px 16px rgba(27, 67, 50, 0.12)',
+                      padding: '20px'
+                    }}
+                  >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
                       <img
                         src={dadosPerfil.avatar || DEFAULT_AVATAR}
@@ -1207,8 +1338,20 @@ function App() {
                         </p>
 
                         <div style={{ display: 'flex', gap: '16px', fontSize: '0.9rem' }}>
-                          <span><strong>{dadosPerfil.following_count}</strong> Seguindo</span>
-                          <span><strong>{dadosPerfil.followers_count}</strong> Seguidores</span>
+                          <span
+                            onClick={() => abrirListaConexoes(dadosPerfil.id, dadosPerfil.username, 'following')}
+                            style={{ cursor: 'pointer', textDecoration: 'underline' }}
+                            title="Ver quem este utilizador segue"
+                          >
+                            <strong>{dadosPerfil.following_count}</strong> Seguindo
+                          </span>
+                          <span
+                            onClick={() => abrirListaConexoes(dadosPerfil.id, dadosPerfil.username, 'followers')}
+                            style={{ cursor: 'pointer', textDecoration: 'underline' }}
+                            title="Ver seguidores deste utilizador"
+                          >
+                            <strong>{dadosPerfil.followers_count}</strong> Seguidores
+                          </span>
                           <span><strong>{postsPerfil.length}</strong> Publicações</span>
                         </div>
                       </div>

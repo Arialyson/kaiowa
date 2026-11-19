@@ -230,7 +230,7 @@ app.put('/users/username', authenticateToken, async (req, res) => {
 });
 
 /**
- * NOVA ROTA: Atualizar Biografia do Usuário
+ * ROTA: Atualizar Biografia do Usuário
  */
 app.put('/users/bio', authenticateToken, async (req, res) => {
   try {
@@ -244,7 +244,7 @@ app.put('/users/bio', authenticateToken, async (req, res) => {
 });
 
 /**
- * NOVA ROTA: Obter Página de Perfil Pública de um Usuário (/@username)
+ * ROTA: Obter Página de Perfil Pública de um Usuário (/@username)
  */
 app.get('/users/:username/profile', async (req, res) => {
   try {
@@ -337,6 +337,66 @@ app.get('/users/:id/stats', async (req, res) => {
     res.json(row || { followers_count: 0, following_count: 0 });
   } catch (err) {
     res.status(500).json({ erro: 'Erro ao carregar estatísticas.' });
+  }
+});
+
+/**
+ * NOVA ROTA: Listar Seguidores de um Utilizador
+ */
+app.get('/users/:id/followers', async (req, res) => {
+  const targetId = req.params.id;
+  let currentUserId = 0;
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (token) {
+    const loggedUser = await db.get('SELECT id FROM users WHERE token = ?', [token]);
+    if (loggedUser) currentUserId = loggedUser.id;
+  }
+
+  const query = `
+    SELECT users.id, users.username, users.avatar,
+      EXISTS(SELECT 1 FROM follows WHERE follower_id = ? AND following_id = users.id) AS is_following
+    FROM follows
+    JOIN users ON follows.follower_id = users.id
+    WHERE follows.following_id = ?
+    ORDER BY users.username ASC
+  `;
+  try {
+    const rows = await db.query(query, [currentUserId, targetId]);
+    res.json(rows || []);
+  } catch (err) {
+    console.error('Erro ao carregar seguidores:', err);
+    res.status(500).json({ erro: 'Erro ao carregar seguidores.' });
+  }
+});
+
+/**
+ * NOVA ROTA: Listar Quem o Utilizador Está a Seguir
+ */
+app.get('/users/:id/following', async (req, res) => {
+  const targetId = req.params.id;
+  let currentUserId = 0;
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (token) {
+    const loggedUser = await db.get('SELECT id FROM users WHERE token = ?', [token]);
+    if (loggedUser) currentUserId = loggedUser.id;
+  }
+
+  const query = `
+    SELECT users.id, users.username, users.avatar,
+      EXISTS(SELECT 1 FROM follows WHERE follower_id = ? AND following_id = users.id) AS is_following
+    FROM follows
+    JOIN users ON follows.following_id = users.id
+    WHERE follows.follower_id = ?
+    ORDER BY users.username ASC
+  `;
+  try {
+    const rows = await db.query(query, [currentUserId, targetId]);
+    res.json(rows || []);
+  } catch (err) {
+    console.error('Erro ao carregar lista de seguindo:', err);
+    res.status(500).json({ erro: 'Erro ao carregar lista de seguindo.' });
   }
 });
 
