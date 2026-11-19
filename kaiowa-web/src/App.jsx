@@ -1288,7 +1288,7 @@ function App() {
                       marginBottom: '24px',
                       border: '2px solid #2d6a4f',
                       borderTop: '6px solid #1b4332',
-                      backgroundColor: '#f8fbf9',
+                      backgroundColor: '#f2f7f3',
                       boxShadow: '0 6px 16px rgba(27, 67, 50, 0.12)',
                       padding: '20px'
                     }}
