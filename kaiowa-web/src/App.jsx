@@ -192,7 +192,13 @@ const RenderVideoEmbed = ({ text }) => {
 
   return null;
 };
-
+const limparLinksVideoDoTexto = (text) => {
+  if (!text) return '';
+  return text
+    .replace(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)[^\s]+/gi, '')
+    .replace(/https?:\/\/[^\s]+\.(?:mp4|webm)(\?[^\s]*)?/gi, '')
+    .trim();
+};
 // ==========================================
 // COMPONENTE PRINCIPAL (APP)
 // ==========================================
@@ -810,7 +816,9 @@ function App() {
         </div>
       </div>
 
-      {post.content && <p className="post-content">{post.content}</p>}
+      {limparLinksVideoDoTexto(post.content) && (
+  <p className="post-content">{limparLinksVideoDoTexto(post.content)}</p>
+)}
 
       {/* RENDERIZAÇÃO AUTOMÁTICA DE VÍDEOS (YOUTUBE / MP4) */}
       <RenderVideoEmbed text={post.content} />
